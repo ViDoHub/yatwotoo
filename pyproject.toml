@@ -1,0 +1,100 @@
+[project]
+name = "yad2-search"
+version = "0.1.0"
+description = "Yad2 rental search with improved filters and WhatsApp notifications"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "httpx>=0.27.0",
+    "beanie>=1.26.0,<2.0.0",
+    "motor>=3.5.0,<3.7.0",
+    "apscheduler>=3.10.0",
+    "jinja2>=3.1.0",
+    "fake-useragent>=1.5.0",
+    "pydantic-settings>=2.4.0",
+    "python-multipart>=0.0.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "ruff>=0.5.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.format]
+skip-magic-trailing-comma = false
+docstring-code-format = true
+docstring-code-line-length = "dynamic"
+indent-style = "space"
+line-ending = "auto"
+quote-style = "single"
+
+[tool.ruff.lint]
+select = [
+    "A",     # flake8-builtins
+    "ANN",   # flake8-annotations
+    "ARG",   # flake8-unused-arguments
+    "B",     # flake8-bugbear
+    "C4",    # flake8-comprehensions
+    "C90",   # mccabe (complexity)
+    "COM",   # flake8-commas
+    "DTZ",   # flake8-datetimez
+    "E",     # pycodestyle errors
+    "ERA",   # commented-out code
+    "F",     # pyflakes
+    "FIX",   # flake8-fixme
+    "FLY",   # str.join -> f-string
+    "I",     # isort
+    "ISC",   # flake8-implicit-str-concat
+    "LOG",   # flake8-logging
+    "N",     # pep8-naming
+    "PERF",  # perflint (performance anti-patterns)
+    "PIE",   # flake8-pie
+    "PL",    # pylint
+    "PT015", # flake8-pytest-style
+    "RET",   # flake8-return
+    "RSE",   # flake8-raise
+    "RUF",   # ruff-specific rules
+    "S",     # flake8-bandit (security)
+    "SIM",   # flake8-simplify
+    "SLOT",  # flake8-slots
+    "TC",    # flake8-type-checking
+    "T10",   # flake8-debugger
+    "UP",    # pyupgrade
+    "W",     # pycodestyle warnings
+]
+ignore = [
+    "ANN401",  # dynamically typed expressions (Any)
+    "ARG002",  # unused method argument
+    "COM812",  # missing trailing comma (conflicts with formatter)
+    "E501",    # line too long (handled by formatter)
+    "FIX002",  # TODO comments
+    "N815",    # mixed-case variable in class scope
+    "PLC0415", # import not at top of file
+    "PLR2004", # magic value comparison
+    "S603",    # subprocess call (intentional mongodump usage)
+    "S607",    # partial executable path (intentional mongodump usage)
+    "SIM105",  # use contextlib.suppress
+    "TC002",   # move third-party import into TYPE_CHECKING
+    "TC006",   # move stdlib import into TYPE_CHECKING
+]
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+force-wrap-aliases = true
+combine-as-imports = true
+
+[tool.ruff.lint.mccabe]
+max-complexity = 20
