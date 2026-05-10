@@ -14,7 +14,7 @@ async def send_email(subject: str, body: str) -> bool:
     """
     user_settings = await UserSettings.find_one()
     if not user_settings:
-        logger.warning("No user settings found")
+        logger.warning('No user settings found')
         return False
 
     host = user_settings.email_smtp_host
@@ -24,13 +24,13 @@ async def send_email(subject: str, body: str) -> bool:
     to_addr = user_settings.email_to
 
     if not host or not to_addr:
-        logger.warning("Email not configured (missing host or recipient)")
+        logger.warning('Email not configured (missing host or recipient)')
         return False
 
     msg = EmailMessage()
-    msg["Subject"] = subject
-    msg["From"] = user or f"yad2-alerts@{host}"
-    msg["To"] = to_addr
+    msg['Subject'] = subject
+    msg['From'] = user or f'yad2-alerts@{host}'
+    msg['To'] = to_addr
     msg.set_content(body)
 
     try:
@@ -51,8 +51,8 @@ async def send_email(subject: str, body: str) -> bool:
                     smtp.login(user, password)
                 smtp.send_message(msg)
 
-        logger.info(f"Email sent to {to_addr}")
+        logger.info(f'Email sent to {to_addr}')
         return True
     except Exception as e:
-        logger.error(f"Error sending email: {e}")
+        logger.error(f'Error sending email: {e}')
         return False

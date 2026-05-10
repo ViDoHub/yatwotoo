@@ -75,13 +75,24 @@ select = [
 ]
 ignore = [
     "ANN401",  # dynamically typed expressions (Any)
+    "ARG001",  # unused function argument (FastAPI injects request)
     "ARG002",  # unused method argument
+    "C901",    # complexity (handled by mccabe max-complexity)
     "COM812",  # missing trailing comma (conflicts with formatter)
     "E501",    # line too long (handled by formatter)
+    "ERA001",  # commented-out code (false positives on section comments)
     "FIX002",  # TODO comments
     "N815",    # mixed-case variable in class scope
+    "PERF401", # list comprehension vs loop (async iteration not comprehensible)
     "PLC0415", # import not at top of file
     "PLR2004", # magic value comparison
+    "PLR0912", # too many branches
+    "PLR0913", # too many arguments
+    "PLR0915", # too many statements
+    "PLW0603", # global statement (lazy-init pattern)
+    "RUF012",  # mutable class attribute (Beanie Settings pattern)
+    "S105",    # possible hardcoded password (false positive on form field names)
+    "S311",    # pseudo-random generator (used for delay, not crypto)
     "S603",    # subprocess call (intentional mongodump usage)
     "S607",    # partial executable path (intentional mongodump usage)
     "SIM105",  # use contextlib.suppress
@@ -90,6 +101,17 @@ ignore = [
 ]
 fixable = ["ALL"]
 unfixable = []
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+    "ANN",   # no type annotations required in tests
+    "ARG",   # unused arguments common in fixtures
+    "E741",  # ambiguous variable names (l in comprehensions)
+    "S101",  # assert is fine in tests
+    "SIM117", # nested with statements (test mocking patterns)
+    "PLR0913", # too many arguments (test helpers)
+    "PLR0915", # too many statements (complex test setups)
+]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]

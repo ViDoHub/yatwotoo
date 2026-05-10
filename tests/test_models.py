@@ -1,7 +1,8 @@
 """Tests for models (validation, defaults, edge cases)."""
 
-import pytest
 from datetime import datetime
+
+import pytest
 
 from app.models import (
     Address,
@@ -16,29 +17,29 @@ from app.models import (
 
 class TestDealType:
     def test_enum_values(self):
-        assert DealType.RENT.value == "rent"
-        assert DealType.FORSALE.value == "forsale"
-        assert DealType.NEW_PROJECTS.value == "newprojects"
+        assert DealType.RENT.value == 'rent'
+        assert DealType.FORSALE.value == 'forsale'
+        assert DealType.NEW_PROJECTS.value == 'newprojects'
 
     def test_from_string(self):
-        assert DealType("rent") == DealType.RENT
-        assert DealType("forsale") == DealType.FORSALE
+        assert DealType('rent') == DealType.RENT
+        assert DealType('forsale') == DealType.FORSALE
 
     def test_invalid_raises(self):
         with pytest.raises(ValueError):
-            DealType("invalid")
+            DealType('invalid')
 
 
 class TestAddress:
     def test_defaults(self):
         addr = Address()
-        assert addr.city == ""
+        assert addr.city == ''
         assert addr.area_id == 0
         assert addr.top_area_id == 0
 
     def test_with_values(self):
-        addr = Address(city="תל אביב", area_id=10, top_area_id=3)
-        assert addr.city == "תל אביב"
+        addr = Address(city='תל אביב', area_id=10, top_area_id=3)
+        assert addr.city == 'תל אביב'
 
 
 class TestAmenities:
@@ -62,7 +63,7 @@ class TestAmenities:
 class TestGeoLocation:
     def test_point_type(self):
         geo = GeoLocation(coordinates=[34.77, 32.06])
-        assert geo.type == "Point"
+        assert geo.type == 'Point'
         assert geo.coordinates == [34.77, 32.06]
 
     def test_empty_default(self):
@@ -72,7 +73,7 @@ class TestGeoLocation:
 
 class TestListing:
     def test_defaults(self):
-        listing = Listing(yad2_id="test1")
+        listing = Listing(yad2_id='test1')
         assert listing.deal_type == DealType.RENT
         assert listing.is_active is True
         assert listing.rooms is None
@@ -84,14 +85,14 @@ class TestListing:
 
     def test_price_per_sqm_calculated(self):
         """price_per_sqm is set externally, not auto-calculated in model."""
-        listing = Listing(yad2_id="calc1", price=10000, sqm=100.0, price_per_sqm=100.0)
+        listing = Listing(yad2_id='calc1', price=10000, sqm=100.0, price_per_sqm=100.0)
         assert listing.price_per_sqm == 100.0
 
 
 class TestScrapeJob:
     def test_defaults(self):
         job = ScrapeJob()
-        assert job.status == "running"
+        assert job.status == 'running'
         assert job.completed_at is None
         assert job.regions_completed == []
         assert job.total_fetched == 0
@@ -101,6 +102,6 @@ class TestScrapeJob:
 
 class TestSavedSearch:
     def test_defaults(self):
-        ss = SavedSearch(name="test")
+        ss = SavedSearch(name='test')
         assert ss.filters == {}
         assert ss.is_active is True

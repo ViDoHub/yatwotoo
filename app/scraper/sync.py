@@ -47,10 +47,7 @@ async def upsert_listings(listings: list[Listing]) -> tuple[list[Listing], list[
                 if listing.price < old_price:
                     price_changed.append(existing)
 
-                logger.info(
-                    f"Price change for {existing.yad2_id}: "
-                    f"{old_price} -> {listing.price}"
-                )
+                logger.info(f'Price change for {existing.yad2_id}: {old_price} -> {listing.price}')
 
             # Update other fields that might have changed
             existing.description = listing.description or existing.description
@@ -62,10 +59,7 @@ async def upsert_listings(listings: list[Listing]) -> tuple[list[Listing], list[
 
             await existing.save()
 
-    logger.info(
-        f"Upsert complete: {len(new_listings)} new, "
-        f"{len(price_changed)} price drops"
-    )
+    logger.info(f'Upsert complete: {len(new_listings)} new, {len(price_changed)} price drops')
     return new_listings, price_changed
 
 
@@ -79,15 +73,15 @@ async def deduplicate_listing(listing: Listing) -> bool:
 
     # Look for existing listing with same address + rooms + sqm but different yad2_id
     query = {
-        "yad2_id": {"$ne": listing.yad2_id},
-        "address.city": listing.address.city,
-        "address.street": listing.address.street,
-        "rooms": listing.rooms,
-        "is_active": True,
+        'yad2_id': {'$ne': listing.yad2_id},
+        'address.city': listing.address.city,
+        'address.street': listing.address.street,
+        'rooms': listing.rooms,
+        'is_active': True,
     }
 
     if listing.sqm:
-        query["sqm"] = listing.sqm
+        query['sqm'] = listing.sqm
 
     existing = await Listing.find_one(query)
     return existing is not None
