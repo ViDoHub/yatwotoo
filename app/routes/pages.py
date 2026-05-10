@@ -1,4 +1,5 @@
 import math
+from typing import Any
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
@@ -40,32 +41,32 @@ async def listings_page(request: Request) -> Response:
     params = dict(request.query_params)
 
     # Build filters from query params
-    filters = {}
+    filters: dict[str, Any] = {}
     if deal_type := params.get('deal_type'):
         filters['deal_type'] = deal_type
     # Multi-value params: getlist handles repeated keys (e.g. cities=A&cities=B)
     # and split handles comma-separated (e.g. cities=A,B)
     if cities_raw := request.query_params.getlist('cities'):
-        cities_list = []
+        cities_list: list[str] = []
         for c in cities_raw:
             cities_list.extend(c.split(','))
         cities_list = [c for c in cities_list if c]
         if cities_list:
             filters['cities'] = cities_list
     if area_ids_raw := request.query_params.getlist('area_ids'):
-        ids = []
+        ids: list[str] = []
         for a in area_ids_raw:
             ids.extend(a.split(','))
         filters['area_ids'] = [int(a) for a in ids if a]
     if neighborhoods_raw := request.query_params.getlist('neighborhoods'):
-        hoods = []
+        hoods: list[str] = []
         for n in neighborhoods_raw:
             hoods.extend(n.split(','))
         hoods = [h for h in hoods if h]
         if hoods:
             filters['neighborhoods'] = hoods
     if top_area_ids_raw := request.query_params.getlist('top_area_ids'):
-        ids = []
+        ids: list[str] = []
         for a in top_area_ids_raw:
             ids.extend(a.split(','))
         filters['top_area_ids'] = [int(a) for a in ids if a]

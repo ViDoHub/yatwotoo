@@ -75,7 +75,7 @@ def format_new_listing_message(listing: Listing) -> str:
     if listing.address.neighborhood:
         parts.append(f'🏘️ {listing.address.neighborhood}')
 
-    details = []
+    details: list[str] = []
     if listing.rooms:
         details.append(f'{listing.rooms} חדרים')
     if listing.sqm:

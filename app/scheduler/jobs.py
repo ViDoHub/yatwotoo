@@ -15,7 +15,7 @@ def _build_scrape_params(filters: dict) -> tuple[dict, DealType, list[int] | Non
 
     Returns (params_dict, deal_type, region_ids).
     """
-    params = {}
+    params: dict[str, str] = {}
 
     deal_type_str = filters.get('deal_type', 'rent')
     try:
@@ -68,8 +68,8 @@ async def poll_listings_job() -> None:
 
     # Incremental sync: shallow fetch per region for each deal type
     # Only deep-drill regions that return exactly 200 (overflow = more data)
-    all_new = []
-    all_price_drops = []
+    all_new: list[Listing] = []
+    all_price_drops: list[Listing] = []
 
     for deal_type in [DealType.RENT, DealType.FORSALE]:
         for region_id in REGIONS:

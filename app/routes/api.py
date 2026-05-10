@@ -123,7 +123,7 @@ async def get_markers(
         },
     ).limit(2000)
 
-    markers = []
+    markers: list[dict] = []
     async for doc in cursor:
         coords = doc.get('location', {}).get('coordinates', [])
         if len(coords) == 2:
@@ -316,7 +316,7 @@ async def get_neighborhoods(cities: str = Query('', description='Comma-separated
         {'$group': {'_id': {'city': '$address.city', 'hood': '$address.neighborhood'}, 'count': {'$sum': 1}}},
         {'$sort': {'_id.city': 1, '_id.hood': 1}},
     ]
-    results = []
+    results: list[dict] = []
     async for doc in collection.aggregate(pipeline):
         results.append(
             {

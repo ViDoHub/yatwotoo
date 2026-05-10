@@ -192,7 +192,7 @@ def parse_marker(marker: dict, deal_type: DealType = DealType.RENT) -> Listing |
 
 def _build_api_params(filters: dict) -> dict:
     """Convert search filters to Yad2 map feed API query params."""
-    params = {}
+    params: dict[str, str] = {}
 
     if rooms_min := filters.get('rooms_min'):
         params['minRooms'] = rooms_min
@@ -436,7 +436,7 @@ async def fetch_all_listings(
         region_ids = list(REGIONS.keys())
 
     api_params = _build_api_params(params)
-    all_listings = []
+    all_listings: list[Listing] = []
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         for region_id in region_ids:
@@ -517,7 +517,7 @@ async def fetch_item_detail(
         data = resp.json().get('data', {})
 
         # Parse boolean amenities from additional_info_items_v2
-        amenity_values = {}
+        amenity_values: dict[str, bool] = {}
         for item in data.get('additional_info_items_v2', []):
             key = item.get('key', '')
             our_key = _AMENITY_KEY_MAP.get(key)

@@ -11,8 +11,8 @@ async def upsert_listings(listings: list[Listing]) -> tuple[list[Listing], list[
 
     Returns (new_listings, price_changed_listings).
     """
-    new_listings = []
-    price_changed = []
+    new_listings: list[Listing] = []
+    price_changed: list[Listing] = []
 
     for listing in listings:
         existing = await Listing.find_one(Listing.yad2_id == listing.yad2_id)

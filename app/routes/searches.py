@@ -1,4 +1,5 @@
 import json
+from typing import Any
 
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -18,7 +19,7 @@ async def create_search(request: Request) -> RedirectResponse:
     """Create a new saved search from form data."""
     form = await request.form()
 
-    filters = {}
+    filters: dict[str, Any] = {}
     if deal_type := form.get('deal_type'):
         filters['deal_type'] = deal_type
 
