@@ -107,8 +107,9 @@ def format_price_drop_message(listing: Listing, old_price: int) -> str:
 
     parts.append(f'💰 {old_price:,} ₪ → *{listing.price:,} ₪*')
 
-    diff = old_price - listing.price
-    percent = (diff / old_price) * 100
+    price = listing.price or 0
+    diff = old_price - price
+    percent = (diff / old_price) * 100 if old_price else 0
     parts.append(f'📉 חיסכון: {diff:,} ₪ ({percent:.1f}%)')
 
     parts.append(f'\n🔗 {listing.url}')

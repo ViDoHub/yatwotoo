@@ -1,5 +1,6 @@
 from datetime import datetime
 from enum import StrEnum
+from typing import Annotated
 
 from beanie import Document, Indexed
 from pydantic import BaseModel, Field
@@ -41,7 +42,7 @@ class Amenities(BaseModel):
 
 
 class Listing(Document):
-    yad2_id: Indexed(str, unique=True)
+    yad2_id: Annotated[str, Indexed(unique=True)]
     deal_type: DealType = DealType.RENT
     address: Address = Field(default_factory=Address)
     rooms: float | None = None
@@ -90,7 +91,7 @@ class SavedSearch(Document):
 
 
 class PriceHistory(Document):
-    listing_id: Indexed(str)
+    listing_id: Annotated[str, Indexed()]
     price: int
     observed_at: datetime = Field(default_factory=datetime.utcnow)
 

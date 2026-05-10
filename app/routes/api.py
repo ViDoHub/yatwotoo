@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from datetime import datetime
+from typing import Any
 
 import httpx
 from fastapi import APIRouter, BackgroundTasks, Query, Request
@@ -44,7 +45,7 @@ async def get_markers(
     mamad: str = Query(''),
 ) -> JSONResponse:
     """Return listing markers within a bounding box (viewport) with optional filters."""
-    query = {'is_active': True}
+    query: dict[str, Any] = {'is_active': True}
 
     # Only apply geo filter if bounds are provided
     if south is not None and west is not None and north is not None and east is not None:

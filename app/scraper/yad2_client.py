@@ -210,7 +210,7 @@ def _parse_float(value: object) -> float | None:
     if value is None:
         return None
     try:
-        return float(value)
+        return float(str(value))
     except (ValueError, TypeError):
         return None
 
@@ -219,10 +219,10 @@ def _parse_int(value: object) -> int | None:
     if value is None:
         return None
     try:
-        return int(value)
+        return int(str(value))
     except (ValueError, TypeError):
         try:
-            return int(float(value))
+            return int(float(str(value)))
         except (ValueError, TypeError):
             return None
 

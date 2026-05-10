@@ -27,12 +27,12 @@ async def create_search(request: Request) -> RedirectResponse:
     if cities:
         filters['cities'] = cities
     if top_area_ids := form.getlist('top_area_ids[]'):
-        filters['top_area_ids'] = [int(a) for a in top_area_ids if a]
+        filters['top_area_ids'] = [int(str(a)) for a in top_area_ids if a]
 
     # Map-drawn polygon (GeoJSON coordinates as JSON string)
     if geo_polygon := form.get('geo_polygon'):
         try:
-            coords = json.loads(geo_polygon)
+            coords = json.loads(str(geo_polygon))
             if coords and len(coords) >= 4:
                 filters['geo_polygon'] = coords
         except (json.JSONDecodeError, TypeError):
@@ -60,7 +60,7 @@ async def create_search(request: Request) -> RedirectResponse:
         filters['center_lng'] = form.get('center_lng')
         filters['radius_km'] = form.get('radius_km')
 
-    name = form.get('name', '').strip() or 'חיפוש חדש'
+    name = str(form.get('name', '')).strip() or 'חיפוש חדש'
 
     search = SavedSearch(name=name, filters=filters)
     await search.insert()
