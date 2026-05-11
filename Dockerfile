@@ -1,15 +1,19 @@
-FROM mongo:7 AS mongo-tools
-
 FROM python:3.12-slim
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Copy mongodump/mongorestore from the official mongo image
-COPY --from=mongo-tools /usr/bin/mongodump /usr/bin/mongorestore /usr/bin/
-
-# Install shared libs needed by mongo tools
+# Install mongodump/mongorestore from standalone tools archive
+# (avoids pulling the full mongo:7 image and its CVEs)
+ARG MONGO_TOOLS_VERSION=100.12.0
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends libgssapi-krb5-2 && \
+    apt-get install -y --no-install-recommends curl libgssapi-krb5-2 && \
+    curl -fsSL "https://fastdl.mongodb.org/tools/db/mongodb-database-tools-debian12-x86_64-${MONGO_TOOLS_VERSION}.tgz" \
+        -o /tmp/mongo-tools.tgz && \
+    tar -xzf /tmp/mongo-tools.tgz --strip-components=2 -C /usr/bin/ \
+        --wildcards '*/bin/mongodump' '*/bin/mongorestore' && \
+    rm /tmp/mongo-tools.tgz && \
+    apt-get purge -y curl && \
+    apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
