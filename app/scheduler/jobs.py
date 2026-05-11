@@ -206,11 +206,11 @@ async def enrich_amenities_job(batch_size: int = 5000) -> None:
 
     enriched: int = 0
     failed: int = 0
-    sem: asyncio.Semaphore = asyncio.Semaphore(5)
+    sem: asyncio.Semaphore = asyncio.Semaphore(value=5)
 
     async def _enrich_one(listing: Listing, client: httpx.AsyncClient) -> bool:
         async with sem:
-            await asyncio.sleep(random.uniform(settings.request_delay_min, settings.request_delay_max))
+            await asyncio.sleep(delay=random.uniform(a=settings.request_delay_min, b=settings.request_delay_max))
             detail = await fetch_item_detail(token=listing.yad2_id, client=client)
         if detail:
             listing.amenities = detail.amenities
@@ -306,7 +306,7 @@ async def run_deep_scrape(job_id: str) -> None:
                     await job.save()
 
             tasks: list[asyncio.Task[None]] = [
-                asyncio.create_task(_scrape_step(deal_type=deal_type, region_id=region_id))
+                asyncio.create_task(coro=_scrape_step(deal_type=deal_type, region_id=region_id))
                 for deal_type in [DealType.RENT, DealType.FORSALE]
                 for region_id in REGIONS
             ]
@@ -322,6 +322,6 @@ async def run_deep_scrape(job_id: str) -> None:
     except Exception as e:
         logger.error(msg=f'[Job {job_id}] Scrape failed: {e}')
         job.status = JobStatus.FAILED
-        job.error = str(e)
+        job.error = str(object=e)
         job.completed_at = datetime.now(tz=UTC)
         await job.save()

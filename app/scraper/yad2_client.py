@@ -586,8 +586,8 @@ async def fetch_item_detail(
         date_updated: str = data.get('date_raw', '') or ''
 
         # Cost details
-        property_tax: str = data.get('property_tax', '') or ''
-        house_committee: str = data.get('HouseCommittee', '') or ''
+        property_tax: str = str(data.get('property_tax', '') or '')
+        house_committee: str = str(data.get('HouseCommittee', '') or '')
 
         # Building info
         total_floors: int | None = _parse_int(data.get('TotalFloor_text'))
