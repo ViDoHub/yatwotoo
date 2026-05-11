@@ -4,7 +4,7 @@ from email.message import EmailMessage
 
 from app.models import UserSettings
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(name=__name__)
 
 
 async def send_email(subject: str, body: str) -> bool:
@@ -14,7 +14,7 @@ async def send_email(subject: str, body: str) -> bool:
     """
     user_settings: UserSettings | None = await UserSettings.find_one()
     if not user_settings:
-        logger.warning('No user settings found')
+        logger.warning(msg='No user settings found')
         return False
 
     host: str = user_settings.email_smtp_host
@@ -24,7 +24,7 @@ async def send_email(subject: str, body: str) -> bool:
     to_addr: str = user_settings.email_to
 
     if not host or not to_addr:
-        logger.warning('Email not configured (missing host or recipient)')
+        logger.warning(msg='Email not configured (missing host or recipient)')
         return False
 
     msg: EmailMessage = EmailMessage()
@@ -36,13 +36,13 @@ async def send_email(subject: str, body: str) -> bool:
     try:
         if port == 465:
             # SSL
-            with smtplib.SMTP_SSL(host, port, timeout=15) as smtp:
+            with smtplib.SMTP_SSL(host=host, port=port, timeout=15) as smtp:
                 if user and password:
                     smtp.login(user, password)
                 smtp.send_message(msg)
         else:
             # STARTTLS (port 587 or others)
-            with smtplib.SMTP(host, port, timeout=15) as smtp:
+            with smtplib.SMTP(host=host, port=port, timeout=15) as smtp:
                 smtp.ehlo()
                 if port != 25:
                     smtp.starttls()
@@ -51,8 +51,8 @@ async def send_email(subject: str, body: str) -> bool:
                     smtp.login(user, password)
                 smtp.send_message(msg)
 
-        logger.info(f'Email sent to {to_addr}')
+        logger.info(msg=f'Email sent to {to_addr}')
         return True
     except Exception as e:
-        logger.error(f'Error sending email: {e}')
+        logger.error(msg=f'Error sending email: {e}')
         return False

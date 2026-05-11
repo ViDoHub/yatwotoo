@@ -4,7 +4,7 @@ from typing import Any
 
 from app.models import Listing, PriceHistory
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(name=__name__)
 
 
 async def upsert_listings(listings: list[Listing]) -> tuple[list[Listing], list[Listing]]:
@@ -31,7 +31,7 @@ async def upsert_listings(listings: list[Listing]) -> tuple[list[Listing], list[
                 ).insert()
         else:
             # Update existing listing
-            existing.last_seen_at = datetime.now(UTC)
+            existing.last_seen_at = datetime.now(tz=UTC)
             existing.is_active = True
 
             # Check for price change
@@ -48,7 +48,7 @@ async def upsert_listings(listings: list[Listing]) -> tuple[list[Listing], list[
                 if listing.price < old_price:
                     price_changed.append(existing)
 
-                logger.info(f'Price change for {existing.yad2_id}: {old_price} -> {listing.price}')
+                logger.info(msg=f'Price change for {existing.yad2_id}: {old_price} -> {listing.price}')
 
             # Update other fields that might have changed
             existing.description = listing.description or existing.description
@@ -60,7 +60,7 @@ async def upsert_listings(listings: list[Listing]) -> tuple[list[Listing], list[
 
             await existing.save()
 
-    logger.info(f'Upsert complete: {len(new_listings)} new, {len(price_changed)} price drops')
+    logger.info(msg=f'Upsert complete: {len(new_listings)} new, {len(price_changed)} price drops')
     return new_listings, price_changed
 
 

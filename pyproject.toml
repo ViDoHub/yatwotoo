@@ -14,6 +14,7 @@ dependencies = [
     "fake-useragent>=1.5.0",
     "pydantic-settings>=2.4.0",
     "python-multipart>=0.0.9",
+    "python-json-logger>=4.1.0",
 ]
 
 [project.optional-dependencies]
@@ -141,5 +142,6 @@ invalid-argument-type = "ignore"
 
 [dependency-groups]
 dev = [
+    "pre-commit>=4.6.0",
     "ty>=0.0.34",
 ]

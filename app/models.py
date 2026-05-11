@@ -5,11 +5,23 @@ from typing import Annotated, Any
 from beanie import Document, Indexed
 from pydantic import BaseModel, Field
 
+from app.consts import GEO_TYPE_POINT, JobStatus
+
 
 class DealType(StrEnum):
     RENT = 'rent'
     FORSALE = 'forsale'
     NEW_PROJECTS = 'newprojects'
+
+
+class AmenityFilter(StrEnum):
+    PARKING = 'parking'
+    ELEVATOR = 'elevator'
+    BALCONY = 'balcony'
+    PETS_ALLOWED = 'pets_allowed'
+    AIR_CONDITIONING = 'air_conditioning'
+    FURNISHED = 'furnished'
+    SHELTER = 'shelter'
 
 
 class Address(BaseModel):
@@ -24,7 +36,7 @@ class Address(BaseModel):
 
 
 class GeoLocation(BaseModel):
-    type: str = 'Point'
+    type: str = GEO_TYPE_POINT
     coordinates: list[float] = Field(default_factory=list)  # [lng, lat]
 
 
@@ -57,8 +69,8 @@ class Listing(Document):
     url: str = ''
     entry_date: str = ''  # move-in date or delivery date for new projects
     project_name: str = ''  # for new projects
-    first_seen_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    last_seen_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    first_seen_at: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
+    last_seen_at: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
     is_active: bool = True
 
     class Settings:
@@ -84,7 +96,7 @@ class SavedSearch(Document):
     # parking, elevator, balcony, pets_allowed,
     # center_lat, center_lng, radius_km
     is_active: bool = True
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
 
     class Settings:
         name = 'saved_searches'
@@ -93,7 +105,7 @@ class SavedSearch(Document):
 class PriceHistory(Document):
     listing_id: Annotated[str, Indexed()]
     price: int
-    observed_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    observed_at: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
 
     class Settings:
         name = 'price_history'
@@ -103,7 +115,7 @@ class NotificationLog(Document):
     saved_search_id: str
     listing_id: str
     message_type: str  # "new_listing" or "price_drop"
-    sent_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    sent_at: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
 
     class Settings:
         name = 'notification_logs'
@@ -136,8 +148,8 @@ class UserSettings(Document):
 
 
 class ScrapeJob(Document):
-    status: str = 'running'  # running, completed, failed
-    started_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    status: str = JobStatus.RUNNING
+    started_at: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
     completed_at: datetime | None = None
     current_region: int | None = None
     current_deal_type: str | None = None

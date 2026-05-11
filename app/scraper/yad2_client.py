@@ -6,26 +6,29 @@ from typing import Any
 
 import httpx
 from fake_useragent import UserAgent
+from fake_useragent.fake import FakeUserAgent
+from httpx._models import Response
 
 from app.config import settings
+from app.consts import FilterParam
 from app.models import Address, Amenities, DealType, GeoLocation, Listing
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(name=__name__)
 
-ua = UserAgent()
+ua: FakeUserAgent = UserAgent()
 
 # New Yad2 realestate-feed API (replaces the legacy feed-search endpoint)
 BASE_URL = 'https://gw.yad2.co.il/realestate-feed'
 
 # Only rent and forsale are supported; newprojects endpoint is gone
-DEAL_TYPE_PATHS = {
+DEAL_TYPE_PATHS: dict[DealType, str] = {
     DealType.RENT: 'rent',
     DealType.FORSALE: 'forsale',
     DealType.NEW_PROJECTS: 'forsale',  # Fallback: new projects no longer has its own endpoint
 }
 
 # Region IDs used by the new API (mapped from the old topArea concept)
-REGIONS = {
+REGIONS: dict[int, str] = {
     1: 'מרכז והשרון',
     2: 'דרום',
     3: 'תל אביב והסביבה',
@@ -37,7 +40,7 @@ REGIONS = {
 }
 
 # Headers that mimic a real browser request
-DEFAULT_HEADERS = {
+DEFAULT_HEADERS: dict[str, str] = {
     'Accept': 'application/json, text/plain, */*',
     'Accept-Language': 'he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7',
     'DNT': '1',
@@ -63,13 +66,13 @@ def _get_semaphore() -> asyncio.Semaphore:
     """Lazy-init semaphore (must be created inside a running event loop)."""
     global _api_semaphore
     if _api_semaphore is None:
-        _api_semaphore = asyncio.Semaphore(settings.scrape_concurrency)
+        _api_semaphore = asyncio.Semaphore(value=settings.scrape_concurrency)
     return _api_semaphore
 
 
 async def _delay() -> None:
     """Random delay between requests to avoid rate limiting."""
-    delay = random.uniform(settings.request_delay_min, settings.request_delay_max)
+    delay: int | float = random.uniform(a=settings.request_delay_min, b=settings.request_delay_max)
     await asyncio.sleep(delay)
 
 
@@ -95,17 +98,17 @@ async def fetch_region(
         client = httpx.AsyncClient(timeout=30.0)
 
     try:
-        response = await client.get(url, params=query_params, headers=_get_headers())
+        response: Response = await client.get(url, params=query_params, headers=_get_headers())
 
         if response.status_code != 200:
-            logger.warning(f'Yad2 returned status {response.status_code} for region {region_id}')
+            logger.warning(msg=f'Yad2 returned status {response.status_code} for region {region_id}')
             return []
 
         data: dict[str, Any] = response.json()
         return data.get('data', {}).get('markers', [])
 
     except (httpx.HTTPError, ValueError) as e:
-        logger.error(f'Error fetching region {region_id}: {e}')
+        logger.error(msg=f'Error fetching region {region_id}: {e}')
         return []
     finally:
         if should_close:
@@ -129,7 +132,7 @@ def parse_marker(marker: dict[str, Any], deal_type: DealType = DealType.RENT) ->
         city=addr.get('city', {}).get('text', ''),
         neighborhood=addr.get('neighborhood', {}).get('text', ''),
         street=addr.get('street', {}).get('text', ''),
-        house_number=str(house.get('number', '')) if house.get('number') is not None else '',
+        house_number=str(object=house.get('number', '')) if house.get('number') is not None else '',
         area=addr.get('area', {}).get('text', ''),
         area_id=0,
         top_area=addr.get('region', {}).get('text', ''),
@@ -137,24 +140,24 @@ def parse_marker(marker: dict[str, Any], deal_type: DealType = DealType.RENT) ->
     )
 
     # Rooms, floor, sqm
-    rooms: float | None = _parse_float(details.get('roomsCount'))
+    rooms: float | None = _parse_float(value=details.get('roomsCount'))
     floor: int | None = house.get('floor')
     if floor is not None:
-        floor = _parse_int(floor)
-    sqm: float | None = _parse_float(details.get('squareMeter'))
+        floor = _parse_int(value=floor)
+    sqm: float | None = _parse_float(value=details.get('squareMeter'))
 
     # Price
-    price: int | None = _parse_int(marker.get('price'))
+    price: int | None = _parse_int(value=marker.get('price'))
 
     # Price per sqm
     price_per_sqm: float | None = None
     if price and sqm and sqm > 0:
-        price_per_sqm = round(price / sqm, 1)
+        price_per_sqm = round(number=price / sqm, ndigits=1)
 
     # Geo location
     location: GeoLocation | None = None
-    lat = coords.get('lat')
-    lng = coords.get('lon')
+    lat: Any | None = coords.get('lat')
+    lng: Any | None = coords.get('lon')
     if lat and lng:
         try:
             location = GeoLocation(coordinates=[float(lng), float(lat)])
@@ -195,13 +198,13 @@ def _build_api_params(filters: dict[str, Any]) -> dict[str, str]:
     """Convert search filters to Yad2 map feed API query params."""
     params: dict[str, str] = {}
 
-    if rooms_min := filters.get('rooms_min'):
+    if rooms_min := filters.get(FilterParam.ROOMS_MIN):
         params['minRooms'] = rooms_min
-    if rooms_max := filters.get('rooms_max'):
+    if rooms_max := filters.get(FilterParam.ROOMS_MAX):
         params['maxRooms'] = rooms_max
-    if price_min := filters.get('price_min'):
+    if price_min := filters.get(FilterParam.PRICE_MIN):
         params['minPrice'] = price_min
-    if price_max := filters.get('price_max'):
+    if price_max := filters.get(FilterParam.PRICE_MAX):
         params['maxPrice'] = price_max
 
     return params
@@ -211,7 +214,7 @@ def _parse_float(value: object) -> float | None:
     if value is None:
         return None
     try:
-        return float(str(value))
+        return float(str(object=value))
     except (ValueError, TypeError):
         return None
 
@@ -220,10 +223,10 @@ def _parse_int(value: object) -> int | None:
     if value is None:
         return None
     try:
-        return int(str(value))
+        return int(str(object=value))
     except (ValueError, TypeError):
         try:
-            return int(float(str(value)))
+            return int(float(str(object=value)))
         except (ValueError, TypeError):
             return None
 
@@ -245,19 +248,19 @@ async def _fetch_with_params(
         try:
             response: httpx.Response = await client.get(url, params=query_params, headers=_get_headers())
             if response.status_code != 200:
-                logger.warning(f'Yad2 returned {response.status_code} for params {query_params}')
+                logger.warning(msg=f'Yad2 returned {response.status_code} for params {query_params}')
                 return [], []
             data: dict[str, Any] = response.json()
             markers: list[dict[str, Any]] = data.get('data', {}).get('markers', [])
             clusters: list[dict[str, Any]] = data.get('data', {}).get('clusters', [])
             return markers, clusters
         except (httpx.HTTPError, ValueError) as e:
-            logger.error(f'Error fetching {query_params}: {e}')
+            logger.error(msg=f'Error fetching {query_params}: {e}')
             return [], []
 
 
 # Price range buckets used to subdivide large neighborhoods
-_PRICE_RANGES = [
+_PRICE_RANGES: list[tuple[int, int]] = [
     (1, 3000),
     (3001, 5000),
     (5001, 7000),
@@ -307,7 +310,7 @@ async def _deep_fetch_region(
 
     def _collect(markers: list[dict[str, Any]]) -> None:
         for m in markers:
-            token = m.get('token', '')
+            token: Any = m.get('token', '')
             if token and token not in seen_tokens:
                 seen_tokens.add(token)
                 all_markers.append(m)
@@ -315,84 +318,84 @@ async def _deep_fetch_region(
 
     async def _drill_hood(params: dict[str, Any], city_id: int | str, hood_cluster: dict[str, Any]) -> None:
         """Drill into a single neighborhood, splitting by price if needed."""
-        hood_id = hood_cluster.get('hoodId')
-        hood_docs = hood_cluster.get('docCount', 0)
+        hood_id: Any | None = hood_cluster.get('hoodId')
+        hood_docs: int = hood_cluster.get('docCount', 0)
         if not hood_id:
             return
 
         if hood_docs <= 200:
-            hood_params = {**params, 'city': city_id, 'neighborhood': hood_id}
-            hood_markers, _ = await _fetch_with_params(deal_type, hood_params, client)
-            await _collect_flush(hood_markers)
+            hood_params: dict[str, Any | int | str] = {**params, 'city': city_id, 'neighborhood': hood_id}
+            hood_markers, _ = await _fetch_with_params(deal_type=deal_type, query_params=hood_params, client=client)
+            await _collect_flush(markers=hood_markers)
             return
 
         # Neighborhood still > 200, split by price ranges concurrently
         async def _fetch_price_range(price_min: int, price_max: int) -> None:
-            price_params = {
+            price_params: dict[str, Any | int | str] = {
                 **params,
                 'city': city_id,
                 'neighborhood': hood_id,
                 'minPrice': price_min,
                 'maxPrice': price_max,
             }
-            price_markers, _ = await _fetch_with_params(deal_type, price_params, client)
-            await _collect_flush(price_markers)
+            price_markers, _ = await _fetch_with_params(deal_type=deal_type, query_params=price_params, client=client)
+            await _collect_flush(markers=price_markers)
 
-        await asyncio.gather(*[_fetch_price_range(pmin, pmax) for pmin, pmax in _PRICE_RANGES])
+        await asyncio.gather(*[_fetch_price_range(price_min=pmin, price_max=pmax) for pmin, pmax in _PRICE_RANGES])
 
     async def _drill_city(params: dict[str, Any], city_cluster: dict[str, Any]) -> None:
         """Drill into a single city, spawning concurrent hood fetches."""
-        city_id = city_cluster.get('cityId')
-        city_docs = city_cluster.get('docCount', 0)
+        city_id: Any | None = city_cluster.get('cityId')
+        city_docs: int = city_cluster.get('docCount', 0)
         if not city_id:
             return
 
         if city_docs <= 200:
-            city_params = {**params, 'city': city_id}
-            city_markers, _ = await _fetch_with_params(deal_type, city_params, client)
-            await _collect_flush(city_markers)
+            city_params: dict[str, Any | int | str] = {**params, 'city': city_id}
+            city_markers, _ = await _fetch_with_params(deal_type=deal_type, query_params=city_params, client=client)
+            await _collect_flush(markers=city_markers)
             return
 
         # City too large, drill into neighborhoods
-        city_params = {**params, 'city': city_id}
-        _, hood_clusters = await _fetch_with_params(deal_type, city_params, client)
+        city_params: dict[str, Any | int | str] = {**params, 'city': city_id}
+        _, hood_clusters = await _fetch_with_params(deal_type=deal_type, query_params=city_params, client=client)
 
         if not hood_clusters:
-            city_markers, _ = await _fetch_with_params(deal_type, city_params, client)
-            await _collect_flush(city_markers)
+            city_markers, _ = await _fetch_with_params(deal_type=deal_type, query_params=city_params, client=client)
+            await _collect_flush(markers=city_markers)
             return
 
-        await asyncio.gather(*[_drill_hood(params, city_id, hc) for hc in hood_clusters])
+        await asyncio.gather(*[_drill_hood(params=params, city_id=city_id, hood_cluster=hc) for hc in hood_clusters])
 
     async def _drill_area(params: dict[str, Any], area_cluster: dict[str, Any]) -> None:
         """Drill into a single area, spawning concurrent city fetches."""
-        area_id = area_cluster.get('areaId')
-        doc_count = area_cluster.get('docCount', 0)
+        area_id: Any | None = area_cluster.get('areaId')
+        doc_count: int = area_cluster.get('docCount', 0)
 
         if not area_id:
             return
 
         if doc_count <= 200:
-            area_params = {**params, 'area': area_id}
-            area_markers, _ = await _fetch_with_params(deal_type, area_params, client)
-            await _collect_flush(area_markers)
+            area_params: dict[str, Any | int | str] = {**params, 'area': area_id}
+            area_markers, _ = await _fetch_with_params(deal_type=deal_type, query_params=area_params, client=client)
+            await _collect_flush(markers=area_markers)
             return
 
         # Area too large, drill into cities
-        area_params = {**params, 'area': area_id}
-        _, city_clusters = await _fetch_with_params(deal_type, area_params, client)
+        area_params: dict[str, Any | int | str] = {**params, 'area': area_id}
+        _, city_clusters = await _fetch_with_params(deal_type=deal_type, query_params=area_params, client=client)
 
         if not city_clusters:
-            area_markers, _ = await _fetch_with_params(deal_type, area_params, client)
-            await _collect_flush(area_markers)
+            area_markers, _ = await _fetch_with_params(deal_type=deal_type, query_params=area_params, client=client)
+            await _collect_flush(markers=area_markers)
             return
 
-        await asyncio.gather(*[_drill_city(params, cc) for cc in city_clusters])
+        await asyncio.gather(*[_drill_city(params=params, city_cluster=cc) for cc in city_clusters])
 
     params: dict[str, Any] = {'region': region_id, **api_params}
     markers: list[dict[str, Any]]
     clusters: list[dict[str, Any]]
-    markers, clusters = await _fetch_with_params(deal_type, params, client)
+    markers, clusters = await _fetch_with_params(deal_type=deal_type, query_params=params, client=client)
 
     # If no clusters, just collect what we got
     if not clusters:
@@ -406,13 +409,13 @@ async def _deep_fetch_region(
         _collect(markers)
 
     # Drill into all area clusters concurrently
-    await asyncio.gather(*[_drill_area(params, ac) for ac in clusters])
+    await asyncio.gather(*[_drill_area(params=params, area_cluster=ac) for ac in clusters])
 
     # Flush any remaining markers
     async with _lock:
         await _flush()
 
-    logger.info(f'Region {region_id} ({REGIONS.get(region_id, "?")}): collected {len(all_markers)} unique markers')
+    logger.info(msg=f'Region {region_id} ({REGIONS.get(region_id, "?")}): collected {len(all_markers)} unique markers')
     return all_markers
 
 
@@ -439,23 +442,28 @@ async def fetch_all_listings(
     if region_ids is None:
         region_ids = list(REGIONS.keys())
 
-    api_params: dict[str, str] = _build_api_params(params)
+    api_params: dict[str, str] = _build_api_params(filters=params)
     all_listings: list[Listing] = []
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         for region_id in region_ids:
-            logger.info(f'Fetching {deal_type.value} region {region_id} ({REGIONS.get(region_id, "?")}) deep={deep}')
+            logger.info(
+                msg=f'Fetching {deal_type.value} region {region_id} ({REGIONS.get(region_id, "?")}) deep={deep}',
+            )
 
             if deep:
                 markers: list[dict[str, Any]] = await _deep_fetch_region(region_id, deal_type, api_params, client)
             else:
                 markers: list[dict[str, Any]] = await fetch_region(
-                    region_id, deal_type=deal_type, params=api_params, client=client
+                    region_id,
+                    deal_type=deal_type,
+                    params=api_params,
+                    client=client,
                 )
                 await _delay()
 
             if not markers:
-                logger.warning(f'No markers for region {region_id}')
+                logger.warning(msg=f'No markers for region {region_id}')
                 continue
 
             for marker in markers:
@@ -463,9 +471,9 @@ async def fetch_all_listings(
                 if listing:
                     all_listings.append(listing)
 
-            logger.info(f'Region {region_id}: parsed {len(markers)} markers')
+            logger.info(msg=f'Region {region_id}: parsed {len(markers)} markers')
 
-    logger.info(f'Fetched {len(all_listings)} listings total from {len(region_ids)} regions')
+    logger.info(msg=f'Fetched {len(all_listings)} listings total from {len(region_ids)} regions')
     return all_listings
 
 
@@ -502,16 +510,16 @@ async def fetch_item_detail(
 
     try:
         for attempt in range(_retries):
-            resp: httpx.Response = await client.get(DETAIL_URL, params={'token': token}, headers=_get_headers())
+            resp: httpx.Response = await client.get(url=DETAIL_URL, params={'token': token}, headers=_get_headers())
 
             if resp.status_code == 200:
                 break
 
             # Rate limited or blocked -- exponential backoff
-            if resp.status_code in (429, 403):
+            if resp.status_code in {429, 403}:
                 backoff: int = 30 * (2**attempt)  # 30s, 60s, 120s
-                logger.warning(f'Rate limited ({resp.status_code}) on {token}, backing off {backoff}s')
-                await asyncio.sleep(backoff)
+                logger.warning(msg=f'Rate limited ({resp.status_code}) on {token}, backing off {backoff}s')
+                await asyncio.sleep(delay=backoff)
                 continue
 
             # Other error -- don't retry
@@ -531,19 +539,19 @@ async def fetch_item_detail(
                 amenity_values[our_key] = bool(item.get('value'))
 
         # Parking: top-level numeric field (>0 means has parking)
-        parking_val = data.get('parking')
+        parking_val: Any | None = data.get('parking')
         if parking_val is not None:
-            amenity_values['parking'] = int(parking_val) > 0 if str(parking_val).isdigit() else False
+            amenity_values['parking'] = int(parking_val) > 0 if str(object=parking_val).isdigit() else False
 
         # Balcony: top-level numeric field
-        balconies_val = data.get('balconies')
+        balconies_val: Any | None = data.get('balconies')
         if balconies_val is not None:
-            amenity_values['balcony'] = int(balconies_val) > 0 if str(balconies_val).isdigit() else False
+            amenity_values['balcony'] = int(balconies_val) > 0 if str(object=balconies_val).isdigit() else False
 
         return Amenities(**amenity_values)
 
     except (httpx.HTTPError, ValueError, KeyError) as e:
-        logger.debug(f'Error fetching detail for {token}: {e}')
+        logger.debug(msg=f'Error fetching detail for {token}: {e}')
         return None
     finally:
         if should_close:

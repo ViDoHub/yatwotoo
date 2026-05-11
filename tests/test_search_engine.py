@@ -93,7 +93,7 @@ class TestSearchFiltersQueryBuilder:
                 'center_lat': '32.06',
                 'center_lng': '34.77',
                 'radius_km': '5',
-            }
+            },
         )
         query = sf.build_query()
         assert '$nearSphere' in query['location']
@@ -116,7 +116,7 @@ class TestSearchFiltersQueryBuilder:
                 'rooms_max': '4',
                 'price_max': '8000',
                 'parking': '1',
-            }
+            },
         )
         query = sf.build_query()
         assert query['deal_type'] == 'rent'
@@ -147,7 +147,7 @@ class TestSearchFiltersQueryBuilder:
                 'price_max': '',
                 'rooms_min': '',
                 'rooms_max': '',
-            }
+            },
         )
         query = sf.build_query()
         assert 'price' not in query

@@ -147,5 +147,5 @@ def sample_detail_response():
             ],
             'parking': '1',
             'balconies': '2',
-        }
+        },
     }

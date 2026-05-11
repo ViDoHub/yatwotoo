@@ -37,5 +37,5 @@ else
     fi
 fi
 
-# Start the app
-exec "$@"
+# Start the app with configurable port
+exec "$@" --port "${PORT:-8000}"

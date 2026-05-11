@@ -154,7 +154,7 @@ class TestBuildApiParams:
                 'rooms_min': 3,
                 'price_max': 10000,
                 'city': 'ignored',  # not handled by _build_api_params
-            }
+            },
         )
         assert params == {'minRooms': 3, 'maxPrice': 10000}
 
@@ -244,7 +244,7 @@ class TestFetchItemDetail:
 
         assert amenities is not None
         # Should have slept 30s on first attempt
-        mock_sleep.assert_called_once_with(30)
+        mock_sleep.assert_called_once_with(delay=30)
 
     async def test_all_retries_exhausted_returns_none(self):
         """Should return None after all retries fail."""

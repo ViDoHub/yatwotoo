@@ -10,7 +10,8 @@ import httpx
 from fastapi import APIRouter, BackgroundTasks, Query, Request
 from fastapi.responses import JSONResponse
 
-from app.models import DealType, Listing, SavedSearch, ScrapeJob
+from app.consts import GEO_TYPE_POLYGON, FilterParam, JobStatus
+from app.models import AmenityFilter, DealType, Listing, SavedSearch, ScrapeJob
 from app.scraper.sync import upsert_listings
 from app.scraper.yad2_client import (
     REGIONS,
@@ -18,34 +19,34 @@ from app.scraper.yad2_client import (
     parse_marker,
 )
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(name=__name__)
 
 router = APIRouter(prefix='/api')
 
 
-@router.get('/markers')
+@router.get(path='/markers')
 async def get_markers(
-    south: float = Query(None),
-    west: float = Query(None),
-    north: float = Query(None),
-    east: float = Query(None),
-    deal_type: str = Query(''),
-    top_area_ids: str = Query(''),
-    cities: str = Query(''),
-    neighborhoods: str = Query(''),
-    rooms_min: str = Query(''),
-    rooms_max: str = Query(''),
-    price_min: str = Query(''),
-    price_max: str = Query(''),
-    sqm_min: str = Query(''),
-    sqm_max: str = Query(''),
-    parking: str = Query(''),
-    elevator: str = Query(''),
-    balcony: str = Query(''),
-    pets_allowed: str = Query(''),
-    air_conditioning: str = Query(''),
-    furnished: str = Query(''),
-    shelter: str = Query(''),
+    south: float = Query(default=None),
+    west: float = Query(default=None),
+    north: float = Query(default=None),
+    east: float = Query(default=None),
+    deal_type: str = Query(default=''),
+    top_area_ids: str = Query(default=''),
+    cities: str = Query(default=''),
+    neighborhoods: str = Query(default=''),
+    rooms_min: str = Query(default=''),
+    rooms_max: str = Query(default=''),
+    price_min: str = Query(default=''),
+    price_max: str = Query(default=''),
+    sqm_min: str = Query(default=''),
+    sqm_max: str = Query(default=''),
+    parking: str = Query(default=''),
+    elevator: str = Query(default=''),
+    balcony: str = Query(default=''),
+    pets_allowed: str = Query(default=''),
+    air_conditioning: str = Query(default=''),
+    furnished: str = Query(default=''),
+    shelter: str = Query(default=''),
 ) -> JSONResponse:
     """Return listing markers within a bounding box (viewport) with optional filters."""
     query: dict[str, Any] = {'is_active': True}
@@ -55,7 +56,7 @@ async def get_markers(
         query['location'] = {
             '$geoWithin': {
                 '$geometry': {
-                    'type': 'Polygon',
+                    'type': GEO_TYPE_POLYGON,
                     'coordinates': [
                         [
                             [west, south],
@@ -63,25 +64,25 @@ async def get_markers(
                             [east, north],
                             [west, north],
                             [west, south],
-                        ]
+                        ],
                     ],
-                }
-            }
+                },
+            },
         }
 
     # Apply filters
     if deal_type:
         query['deal_type'] = deal_type
     if top_area_ids:
-        ids: list[int] = [int(a) for a in top_area_ids.split(',') if a]
+        ids: list[int] = [int(a) for a in top_area_ids.split(sep=',') if a]
         if ids:
             query['address.top_area_id'] = {'$in': ids}
     if cities:
-        city_list: list[str] = [c for c in cities.split(',') if c]
+        city_list: list[str] = [c for c in cities.split(sep=',') if c]
         if city_list:
             query['address.city'] = {'$in': city_list}
     if neighborhoods:
-        hood_list: list[str] = [h for h in neighborhoods.split(',') if h]
+        hood_list: list[str] = [h for h in neighborhoods.split(sep=',') if h]
         if hood_list:
             query['address.neighborhood'] = {'$in': hood_list}
     if rooms_min:
@@ -144,10 +145,10 @@ async def get_markers(
                     'sqm': doc.get('sqm'),
                     'address': address,
                     'yad2_id': doc.get('yad2_id'),
-                }
+                },
             )
 
-    return JSONResponse({'markers': markers, 'total': len(markers)})
+    return JSONResponse(content={'markers': markers, 'total': len(markers)})
 
 
 async def _run_deep_scrape(job_id: str) -> None:
@@ -156,7 +157,7 @@ async def _run_deep_scrape(job_id: str) -> None:
     Runs multiple region+deal_type combinations concurrently (bounded by
     the global API semaphore in yad2_client).
     """
-    job: ScrapeJob | None = await ScrapeJob.get(job_id)
+    job: ScrapeJob | None = await ScrapeJob.get(document_id=job_id)
     if not job:
         return
 
@@ -173,22 +174,30 @@ async def _run_deep_scrape(job_id: str) -> None:
                 if step_key in job.regions_completed:
                     return
 
-                logger.info(f'[Job {job_id}] Deep scraping {deal_type.value} region {region_id}')
+                logger.info(msg=f'[Job {job_id}] Deep scraping {deal_type.value} region {region_id}')
 
                 async def on_chunk(chunk_markers: list[dict[str, Any]], _deal_type: DealType = deal_type) -> None:
                     """Called every ~200 markers - upsert to DB and update job."""
-                    listings = [
-                        parsed for m in chunk_markers if (parsed := parse_marker(m, deal_type=_deal_type)) is not None
+                    listings: list[Listing] = [
+                        parsed
+                        for m in chunk_markers
+                        if (parsed := parse_marker(marker=m, deal_type=_deal_type)) is not None
                     ]
                     if listings:
-                        new_listings, price_drops = await upsert_listings(listings)
+                        new_listings, price_drops = await upsert_listings(listings=listings)
                         async with job_lock:
                             job.total_fetched += len(listings)
                             job.total_new += len(new_listings)
                             job.total_price_drops += len(price_drops)
                             await job.save()
 
-                await _deep_fetch_region(region_id, deal_type, {}, client, on_chunk=on_chunk)
+                await _deep_fetch_region(
+                    region_id=region_id,
+                    deal_type=deal_type,
+                    api_params={},
+                    client=client,
+                    on_chunk=on_chunk,
+                )
 
                 async with job_lock:
                     job.regions_completed.append(step_key)
@@ -196,28 +205,28 @@ async def _run_deep_scrape(job_id: str) -> None:
 
             # Build all region+deal_type tasks
             tasks: list[Coroutine[Any, Any, None]] = [
-                _scrape_step(deal_type, region_id)
+                _scrape_step(deal_type=deal_type, region_id=region_id)
                 for deal_type in [DealType.RENT, DealType.FORSALE]
                 for region_id in REGIONS
             ]
             await asyncio.gather(*tasks)
 
-        job.status = 'completed'
-        job.completed_at = datetime.now(UTC)
+        job.status = JobStatus.COMPLETED
+        job.completed_at = datetime.now(tz=UTC)
         job.current_region = None
         job.current_deal_type = None
         await job.save()
-        logger.info(f'[Job {job_id}] Scrape completed: {job.total_fetched} fetched, {job.total_new} new')
+        logger.info(msg=f'[Job {job_id}] Scrape completed: {job.total_fetched} fetched, {job.total_new} new')
 
     except Exception as e:
-        logger.error(f'[Job {job_id}] Scrape failed: {e}')
-        job.status = 'failed'
-        job.error = str(e)
-        job.completed_at = datetime.now(UTC)
+        logger.error(msg=f'[Job {job_id}] Scrape failed: {e}')
+        job.status = JobStatus.FAILED
+        job.error = str(object=e)
+        job.completed_at = datetime.now(tz=UTC)
         await job.save()
 
 
-@router.post('/scrape')
+@router.post(path='/scrape')
 async def trigger_scrape(
     background_tasks: BackgroundTasks,
     *,
@@ -225,14 +234,14 @@ async def trigger_scrape(
 ) -> JSONResponse:
     """Kick off a deep scrape in the background. Returns immediately with job ID."""
     # Check if a scrape is already running
-    running: ScrapeJob | None = await ScrapeJob.find_one(ScrapeJob.status == 'running')
+    running: ScrapeJob | None = await ScrapeJob.find_one(ScrapeJob.status == JobStatus.RUNNING)
     if running:
         return JSONResponse(
-            {
-                'status': 'already_running',
-                'job_id': str(running.id),
+            content={
+                'status': JobStatus.ALREADY_RUNNING,
+                'job_id': str(object=running.id),
                 'message': 'A scrape is already in progress.',
-            }
+            },
         )
 
     job: ScrapeJob = ScrapeJob()
@@ -240,7 +249,7 @@ async def trigger_scrape(
     if resume:
         # Find most recent failed/cancelled job with progress to resume from
         prev: ScrapeJob | None = await ScrapeJob.find_one(
-            {'status': {'$in': ['failed', 'cancelled']}, 'regions_completed': {'$ne': []}},
+            {'status': {'$in': [JobStatus.FAILED, JobStatus.CANCELLED]}, 'regions_completed': {'$ne': []}},
             sort=[('started_at', -1)],
         )
         if prev:
@@ -249,24 +258,24 @@ async def trigger_scrape(
             job.total_new = prev.total_new
             job.total_price_drops = prev.total_price_drops
             # Mark the old job as "resumed" so it won't be picked up again
-            prev.status = 'resumed'
+            prev.status = JobStatus.RESUMED
             await prev.save()
-            logger.info(f'Resuming from job {prev.id}: {len(prev.regions_completed)} steps already done')
+            logger.info(msg=f'Resuming from job {prev.id}: {len(prev.regions_completed)} steps already done')
 
     await job.insert()
 
-    background_tasks.add_task(_run_deep_scrape, str(job.id))
+    background_tasks.add_task(func=_run_deep_scrape, job_id=str(object=job.id))
 
     return JSONResponse(
-        {
-            'status': 'started',
-            'job_id': str(job.id),
+        content={
+            'status': JobStatus.STARTED,
+            'job_id': str(object=job.id),
             'message': 'Scrape started in background.',
-        }
+        },
     )
 
 
-@router.get('/scrape/status')
+@router.get(path='/scrape/status')
 async def scrape_status() -> JSONResponse:
     """Return current/last scrape job status and listing counts."""
     job: ScrapeJob | None = await ScrapeJob.find_one(
@@ -287,13 +296,13 @@ async def scrape_status() -> JSONResponse:
     if job:
         total_steps: int = len(REGIONS) * 2  # 8 regions x 2 deal types
         result['job'] = {
-            'id': str(job.id),
+            'id': str(object=job.id),
             'status': job.status,
             'started_at': job.started_at.isoformat(),
             'completed_at': job.completed_at.isoformat() if job.completed_at else None,
             'regions_completed': len(job.regions_completed),
             'total_steps': total_steps,
-            'progress_pct': round(len(job.regions_completed) / total_steps * 100),
+            'progress_pct': round(number=len(job.regions_completed) / total_steps * 100),
             'total_fetched': job.total_fetched,
             'total_new': job.total_new,
             'total_price_drops': job.total_price_drops,
@@ -302,15 +311,15 @@ async def scrape_status() -> JSONResponse:
     else:
         result['job'] = None
 
-    return JSONResponse(result)
+    return JSONResponse(content=result)
 
 
-@router.get('/neighborhoods')
-async def get_neighborhoods(cities: str = Query('', description='Comma-separated city names')) -> JSONResponse:
+@router.get(path='/neighborhoods')
+async def get_neighborhoods(cities: str = Query(default='', description='Comma-separated city names')) -> JSONResponse:
     """Return distinct neighborhoods for the given cities."""
     query: dict[str, Any] = {'is_active': True, 'address.neighborhood': {'$ne': ''}}
     if cities:
-        city_list: list[str] = [c.strip() for c in cities.split(',') if c.strip()]
+        city_list: list[str] = [c.strip() for c in cities.split(sep=',') if c.strip()]
         if city_list:
             query['address.city'] = {'$in': city_list}
 
@@ -327,12 +336,12 @@ async def get_neighborhoods(cities: str = Query('', description='Comma-separated
                 'city': doc['_id']['city'],
                 'name': doc['_id']['hood'],
                 'count': doc['count'],
-            }
+            },
         )
-    return JSONResponse(results)
+    return JSONResponse(content=results)
 
 
-@router.post('/searches')
+@router.post(path='/searches')
 async def save_search_api(request: Request) -> JSONResponse:
     """Save current listing filters as a new saved search (JSON API).
 
@@ -343,31 +352,7 @@ async def save_search_api(request: Request) -> JSONResponse:
     filters: dict[str, Any] = body.get('filters', {})
 
     # Sanitize: only allow known filter keys
-    allowed_keys: set[str] = {
-        'deal_type',
-        'cities',
-        'top_area_ids',
-        'area_ids',
-        'neighborhoods',
-        'rooms_min',
-        'rooms_max',
-        'price_min',
-        'price_max',
-        'sqm_min',
-        'sqm_max',
-        'floor_min',
-        'floor_max',
-        'parking',
-        'elevator',
-        'balcony',
-        'pets_allowed',
-        'air_conditioning',
-        'furnished',
-        'shelter',
-        'center_lat',
-        'center_lng',
-        'radius_km',
-    }
+    allowed_keys: frozenset[str] = frozenset({*FilterParam, *AmenityFilter})
     clean_filters: dict[str, Any] = {k: v for k, v in filters.items() if k in allowed_keys and v}
 
     # Upsert: update existing search with same name, or create new
@@ -376,14 +361,14 @@ async def save_search_api(request: Request) -> JSONResponse:
         existing.filters = clean_filters
         existing.is_active = True
         await existing.save()
-        return JSONResponse({'status': 'updated', 'id': str(existing.id), 'name': name})
+        return JSONResponse(content={'status': 'updated', 'id': str(object=existing.id), 'name': name})
 
     search: SavedSearch = SavedSearch(name=name, filters=clean_filters)
     await search.insert()
-    return JSONResponse({'status': 'saved', 'id': str(search.id), 'name': name})
+    return JSONResponse(content={'status': 'saved', 'id': str(object=search.id), 'name': name})
 
 
-@router.put('/searches/{search_id}')
+@router.put(path='/searches/{search_id}')
 async def update_search_api(search_id: str, request: Request) -> JSONResponse:
     """Update an existing saved search's filters by ID."""
     from beanie import PydanticObjectId
@@ -391,47 +376,23 @@ async def update_search_api(search_id: str, request: Request) -> JSONResponse:
     body: dict[str, Any] = await request.json()
     filters: dict[str, Any] = body.get('filters', {})
 
-    allowed_keys: set[str] = {
-        'deal_type',
-        'cities',
-        'top_area_ids',
-        'area_ids',
-        'neighborhoods',
-        'rooms_min',
-        'rooms_max',
-        'price_min',
-        'price_max',
-        'sqm_min',
-        'sqm_max',
-        'floor_min',
-        'floor_max',
-        'parking',
-        'elevator',
-        'balcony',
-        'pets_allowed',
-        'air_conditioning',
-        'furnished',
-        'shelter',
-        'center_lat',
-        'center_lng',
-        'radius_km',
-    }
+    allowed_keys: frozenset[str] = frozenset({*FilterParam, *AmenityFilter})
     clean_filters: dict[str, Any] = {k: v for k, v in filters.items() if k in allowed_keys and v}
 
-    existing: SavedSearch | None = await SavedSearch.get(PydanticObjectId(search_id))
+    existing: SavedSearch | None = await SavedSearch.get(document_id=PydanticObjectId(oid=search_id))
     if not existing:
-        return JSONResponse({'status': 'error', 'message': 'Search not found'}, status_code=404)
+        return JSONResponse(content={'status': 'error', 'message': 'Search not found'}, status_code=404)
 
     existing.filters = clean_filters
     existing.is_active = True
     await existing.save()
-    return JSONResponse({'status': 'updated', 'id': str(existing.id), 'name': existing.name})
+    return JSONResponse(content={'status': 'updated', 'id': str(object=existing.id), 'name': existing.name})
 
 
-@router.post('/enrich')
+@router.post(path='/enrich')
 async def trigger_enrich(background_tasks: BackgroundTasks) -> JSONResponse:
     """Manually trigger amenity enrichment for un-enriched listings."""
     from app.scheduler.jobs import enrich_amenities_job
 
-    background_tasks.add_task(enrich_amenities_job, batch_size=1000)
-    return JSONResponse({'status': 'started', 'message': 'Enriching up to 1000 listings'})
+    background_tasks.add_task(func=enrich_amenities_job, batch_size=1000)
+    return JSONResponse(content={'status': JobStatus.STARTED, 'message': 'Enriching up to 1000 listings'})

@@ -1,89 +1,102 @@
 import logging
 from typing import Any
 
-from app.models import Listing
+from app.consts import GEO_TYPE_POINT, GEO_TYPE_POLYGON, FilterParam, SortBy
+from app.models import AmenityFilter, Listing
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(name=__name__)
 
 
 class SearchFilters:
     """Build MongoDB query from search filter parameters."""
 
     def __init__(self, filters: dict[str, Any]) -> None:
-        self.filters = filters
+        self.filters: dict[str, Any] = filters
 
     def build_query(self) -> dict[str, Any]:
         query: dict[str, Any] = {'is_active': True}
 
         # Deal type filter
-        if deal_type := self.filters.get('deal_type'):
+        if deal_type := self.filters.get(FilterParam.DEAL_TYPE):
             query['deal_type'] = deal_type
 
         # City filter (singular or plural)
-        if cities := self.filters.get('cities'):
+        if cities := self.filters.get(FilterParam.CITIES):
             if isinstance(cities, list) and cities:
                 query['address.city'] = {'$in': cities}
-        elif city := self.filters.get('city'):
+        elif city := self.filters.get(FilterParam.CITY):
             query['address.city'] = city
 
         # Area filter (multi-select)
-        if (area_ids := self.filters.get('area_ids')) and isinstance(area_ids, list) and area_ids:
+        if (area_ids := self.filters.get(FilterParam.AREA_IDS)) and isinstance(area_ids, list) and area_ids:
             query['address.area_id'] = {'$in': [int(a) for a in area_ids]}
 
         # Top area filter (multi-select)
-        if (top_area_ids := self.filters.get('top_area_ids')) and isinstance(top_area_ids, list) and top_area_ids:
+        if (
+            (top_area_ids := self.filters.get(FilterParam.TOP_AREA_IDS))
+            and isinstance(top_area_ids, list)
+            and top_area_ids
+        ):
             query['address.top_area_id'] = {'$in': [int(a) for a in top_area_ids]}
 
         # Neighborhood filter (multi-select)
-        if (neighborhoods := self.filters.get('neighborhoods')) and isinstance(neighborhoods, list) and neighborhoods:
+        if (
+            (neighborhoods := self.filters.get(FilterParam.NEIGHBORHOODS))
+            and isinstance(neighborhoods, list)
+            and neighborhoods
+        ):
             query['address.neighborhood'] = {'$in': neighborhoods}
 
         # Rooms range
-        if rooms_min := self.filters.get('rooms_min'):
+        if rooms_min := self.filters.get(FilterParam.ROOMS_MIN):
             query.setdefault('rooms', {})['$gte'] = float(rooms_min)
-        if rooms_max := self.filters.get('rooms_max'):
+        if rooms_max := self.filters.get(FilterParam.ROOMS_MAX):
             query.setdefault('rooms', {})['$lte'] = float(rooms_max)
 
         # Price range
-        if price_min := self.filters.get('price_min'):
+        if price_min := self.filters.get(FilterParam.PRICE_MIN):
             query.setdefault('price', {})['$gte'] = int(price_min)
-        if price_max := self.filters.get('price_max'):
+        if price_max := self.filters.get(FilterParam.PRICE_MAX):
             query.setdefault('price', {})['$lte'] = int(price_max)
 
         # Sqm range
-        if sqm_min := self.filters.get('sqm_min'):
+        if sqm_min := self.filters.get(FilterParam.SQM_MIN):
             query.setdefault('sqm', {})['$gte'] = float(sqm_min)
-        if sqm_max := self.filters.get('sqm_max'):
+        if sqm_max := self.filters.get(FilterParam.SQM_MAX):
             query.setdefault('sqm', {})['$lte'] = float(sqm_max)
 
         # Floor range
-        if floor_min := self.filters.get('floor_min'):
+        if floor_min := self.filters.get(FilterParam.FLOOR_MIN):
             query.setdefault('floor', {})['$gte'] = int(floor_min)
-        if floor_max := self.filters.get('floor_max'):
+        if floor_max := self.filters.get(FilterParam.FLOOR_MAX):
             query.setdefault('floor', {})['$lte'] = int(floor_max)
 
         # Boolean amenities - match only True (confirmed)
-        for amenity in ['parking', 'elevator', 'balcony', 'pets_allowed', 'air_conditioning', 'furnished', 'shelter']:
+        for amenity in AmenityFilter:
             if self.filters.get(amenity):
                 query[f'amenities.{amenity}'] = True
 
         # Geographic radius search (using MongoDB $nearSphere)
-        center_lat = self.filters.get('center_lat')
-        center_lng = self.filters.get('center_lng')
-        radius_km = self.filters.get('radius_km')
+        center_lat: Any | None = self.filters.get(FilterParam.CENTER_LAT)
+        center_lng: Any | None = self.filters.get(FilterParam.CENTER_LNG)
+        radius_km: Any | None = self.filters.get(FilterParam.RADIUS_KM)
         if center_lat and center_lng and radius_km:
             query['location'] = {
                 '$nearSphere': {
                     '$geometry': {
-                        'type': 'Point',
+                        'type': GEO_TYPE_POINT,
                         'coordinates': [float(center_lng), float(center_lat)],
                     },
                     '$maxDistance': float(radius_km) * 1000,  # convert km to meters
-                }
+                },
             }
 
         # Geographic polygon search (using MongoDB $geoWithin)
-        if (geo_polygon := self.filters.get('geo_polygon')) and isinstance(geo_polygon, list) and len(geo_polygon) >= 4:
+        if (
+            (geo_polygon := self.filters.get(FilterParam.GEO_POLYGON))
+            and isinstance(geo_polygon, list)
+            and len(geo_polygon) >= 4
+        ):
             # Ensure polygon is closed
             coords: list[list[float]] = [[float(c[0]), float(c[1])] for c in geo_polygon]
             if coords[0] != coords[-1]:
@@ -91,26 +104,26 @@ class SearchFilters:
             query['location'] = {
                 '$geoWithin': {
                     '$geometry': {
-                        'type': 'Polygon',
+                        'type': GEO_TYPE_POLYGON,
                         'coordinates': [coords],
-                    }
-                }
+                    },
+                },
             }
 
         return query
 
     def get_sort(self) -> list[tuple[str, int]]:
         """Return sort specification based on filters."""
-        sort_by: str = self.filters.get('sort_by', 'newest')
+        sort_by: str = self.filters.get(FilterParam.SORT_BY, SortBy.NEWEST)
 
         sort_map: dict[str, list[tuple[str, int]]] = {
-            'newest': [('first_seen_at', -1)],
-            'price_asc': [('price', 1)],
-            'price_desc': [('price', -1)],
-            'price_per_sqm_asc': [('price_per_sqm', 1)],
-            'price_per_sqm_desc': [('price_per_sqm', -1)],
-            'sqm_desc': [('sqm', -1)],
-            'rooms_asc': [('rooms', 1)],
+            SortBy.NEWEST: [('first_seen_at', -1)],
+            SortBy.PRICE_ASC: [('price', 1)],
+            SortBy.PRICE_DESC: [('price', -1)],
+            SortBy.PRICE_PER_SQM_ASC: [('price_per_sqm', 1)],
+            SortBy.PRICE_PER_SQM_DESC: [('price_per_sqm', -1)],
+            SortBy.SQM_DESC: [('sqm', -1)],
+            SortBy.ROOMS_ASC: [('rooms', 1)],
         }
 
         return sort_map.get(sort_by, [('first_seen_at', -1)])

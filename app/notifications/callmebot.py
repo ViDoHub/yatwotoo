@@ -1,10 +1,12 @@
 import logging
 
 import httpx
+from httpx._models import Response
 
+from app.consts import MessageType
 from app.models import Listing, NotificationLog, UserSettings
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(name=__name__)
 
 CALLMEBOT_URL = 'https://api.callmebot.com/whatsapp.php'
 
@@ -30,13 +32,13 @@ async def send_whatsapp(message: str, phone: str = '', apikey: str = '') -> bool
         phone, apikey = await get_whatsapp_config()
 
     if not phone or not apikey:
-        logger.warning('WhatsApp not configured (no phone/apikey)')
+        logger.warning(msg='WhatsApp not configured (no phone/apikey)')
         return False
 
     # Check if notifications are enabled
     user_settings: UserSettings | None = await UserSettings.find_one()
     if user_settings and not user_settings.notifications_enabled:
-        logger.info('WhatsApp notifications disabled by user (global)')
+        logger.info(msg='WhatsApp notifications disabled by user (global)')
         return False
 
     params: dict[str, str] = {
@@ -47,15 +49,15 @@ async def send_whatsapp(message: str, phone: str = '', apikey: str = '') -> bool
 
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
-            response = await client.get(CALLMEBOT_URL, params=params)
+            response: Response = await client.get(url=CALLMEBOT_URL, params=params)
 
             if response.status_code == 200:
-                logger.info(f'WhatsApp message sent to {phone}')
+                logger.info(msg=f'WhatsApp message sent to {phone}')
                 return True
-            logger.error(f'Callmebot returned {response.status_code}: {response.text}')
+            logger.error(msg=f'Callmebot returned {response.status_code}: {response.text}')
             return False
     except httpx.HTTPError as e:
-        logger.error(f'Error sending WhatsApp message: {e}')
+        logger.error(msg=f'Error sending WhatsApp message: {e}')
         return False
 
 
@@ -123,19 +125,19 @@ async def notify_new_listing(listing: Listing, saved_search_id: str) -> bool:
     existing: NotificationLog | None = await NotificationLog.find_one(
         NotificationLog.saved_search_id == saved_search_id,
         NotificationLog.listing_id == listing.yad2_id,
-        NotificationLog.message_type == 'new_listing',
+        NotificationLog.message_type == MessageType.NEW_LISTING,
     )
     if existing:
         return False
 
-    message: str = format_new_listing_message(listing)
-    success: bool = await send_whatsapp(message)
+    message: str = format_new_listing_message(listing=listing)
+    success: bool = await send_whatsapp(message=message)
 
     if success:
         await NotificationLog(
             saved_search_id=saved_search_id,
             listing_id=listing.yad2_id,
-            message_type='new_listing',
+            message_type=MessageType.NEW_LISTING,
         ).insert()
 
     return success
@@ -146,19 +148,19 @@ async def notify_price_drop(listing: Listing, old_price: int, saved_search_id: s
     existing: NotificationLog | None = await NotificationLog.find_one(
         NotificationLog.saved_search_id == saved_search_id,
         NotificationLog.listing_id == listing.yad2_id,
-        NotificationLog.message_type == 'price_drop',
+        NotificationLog.message_type == MessageType.PRICE_DROP,
     )
     if existing:
         return False
 
-    message: str = format_price_drop_message(listing, old_price)
-    success: bool = await send_whatsapp(message)
+    message: str = format_price_drop_message(listing=listing, old_price=old_price)
+    success: bool = await send_whatsapp(message=message)
 
     if success:
         await NotificationLog(
             saved_search_id=saved_search_id,
             listing_id=listing.yad2_id,
-            message_type='price_drop',
+            message_type=MessageType.PRICE_DROP,
         ).insert()
 
     return success

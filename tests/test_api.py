@@ -1,8 +1,11 @@
-"""Tests for API routes (saved searches, scrape status, markers)."""
+"""Tests for API routes (saved searches, scrape status, markers, health)."""
 
-from unittest.mock import AsyncMock
+import json
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from motor.motor_asyncio import AsyncIOMotorClient
 
 from app.models import DealType, Listing, SavedSearch, ScrapeJob
 
@@ -21,7 +24,7 @@ class TestSaveSearchAPI:
             return_value={
                 'name': 'My Search',
                 'filters': {'deal_type': 'rent', 'rooms_min': '3', 'price_max': '8000'},
-            }
+            },
         )
 
         response = await save_search_api(mock_request)
@@ -47,7 +50,7 @@ class TestSaveSearchAPI:
             return_value={
                 'name': 'Existing',
                 'filters': {'deal_type': 'forsale', 'rooms_min': '4'},
-            }
+            },
         )
 
         response = await save_search_api(mock_request)
@@ -76,7 +79,7 @@ class TestSaveSearchAPI:
                     '__proto__': 'pollution',
                     'constructor': 'evil',
                 },
-            }
+            },
         )
 
         await save_search_api(mock_request)
@@ -100,7 +103,7 @@ class TestSaveSearchAPI:
                     'price_max': '',
                     'rooms_min': '3',
                 },
-            }
+            },
         )
 
         await save_search_api(mock_request)
@@ -118,7 +121,7 @@ class TestSaveSearchAPI:
             return_value={
                 'name': '   ',  # whitespace only
                 'filters': {'deal_type': 'rent'},
-            }
+            },
         )
 
         await save_search_api(mock_request)
@@ -204,3 +207,40 @@ class TestTriggerScrape:
         # Job should exist in DB
         job = await ScrapeJob.find_one(ScrapeJob.status == 'running')
         assert job is not None
+
+
+class TestHealth:
+    """Test GET /health endpoint."""
+
+    async def test_health_ok(self):
+        from app.main import app, health
+
+        # Simulate app state set during lifespan
+        app.state.started_at = datetime.now(tz=UTC)
+        app.state.motor_client = AsyncIOMotorClient('mongodb://localhost:27017')
+
+        response = await health()
+        data = json.loads(response.body)
+
+        assert data['status'] == 'ok'
+        assert data['db'] == 'connected'
+        assert data['uptime_seconds'] >= 0
+
+        app.state.motor_client.close()
+
+    async def test_health_degraded_when_db_unreachable(self):
+        from app.main import app, health
+
+        app.state.started_at = datetime.now(tz=UTC)
+        # Mock a client that fails on ping
+        mock_client = MagicMock()
+        mock_client.__getitem__ = MagicMock(return_value=MagicMock())
+        mock_client.__getitem__().command = AsyncMock(side_effect=ConnectionError('no db'))
+        app.state.motor_client = mock_client
+
+        response = await health()
+        data = json.loads(response.body)
+
+        assert data['status'] == 'degraded'
+        assert data['db'] == 'unreachable'
+        assert data['uptime_seconds'] >= 0

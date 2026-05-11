@@ -22,7 +22,7 @@ class TestPollListingsJobGating:
 
     async def test_skips_when_job_running(self):
         """Should skip poll if another job is currently running."""
-        await ScrapeJob(status='completed', completed_at=datetime.now(UTC)).insert()
+        await ScrapeJob(status='completed', completed_at=datetime.now(tz=UTC)).insert()
         await ScrapeJob(status='running').insert()
 
         # Should return early without fetching
@@ -32,7 +32,7 @@ class TestPollListingsJobGating:
 
     async def test_runs_when_completed_exists_and_none_running(self):
         """Should proceed with poll when conditions are met."""
-        await ScrapeJob(status='completed', completed_at=datetime.now(UTC)).insert()
+        await ScrapeJob(status='completed', completed_at=datetime.now(tz=UTC)).insert()
 
         with patch('app.scheduler.jobs.fetch_all_listings', new_callable=AsyncMock, return_value=[]) as mock_fetch:
             await poll_listings_job()
@@ -50,7 +50,7 @@ class TestCleanupStaleListings:
             yad2_id='fresh1',
             deal_type=DealType.RENT,
             is_active=True,
-            last_seen_at=datetime.now(UTC),
+            last_seen_at=datetime.now(tz=UTC),
         ).insert()
 
         # Stale listing (not seen in 5 days)
@@ -58,7 +58,7 @@ class TestCleanupStaleListings:
             yad2_id='stale1',
             deal_type=DealType.RENT,
             is_active=True,
-            last_seen_at=datetime.now(UTC) - timedelta(days=5),
+            last_seen_at=datetime.now(tz=UTC) - timedelta(days=5),
         ).insert()
 
         await cleanup_stale_listings_job()
@@ -74,7 +74,7 @@ class TestCleanupStaleListings:
             yad2_id='already_inactive',
             deal_type=DealType.RENT,
             is_active=False,
-            last_seen_at=datetime.now(UTC) - timedelta(days=10),
+            last_seen_at=datetime.now(tz=UTC) - timedelta(days=10),
         ).insert()
 
         await cleanup_stale_listings_job()
