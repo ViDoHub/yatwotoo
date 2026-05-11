@@ -147,5 +147,6 @@ def sample_detail_response():
             ],
             'parking': '1',
             'balconies': '2',
+            'info_text': 'דירה מרווחת עם נוף לים',
         },
     }

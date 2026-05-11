@@ -7,6 +7,7 @@ import pytest
 
 from app.models import Amenities, DealType, Listing, ScrapeJob
 from app.scheduler.jobs import cleanup_stale_listings_job, enrich_amenities_job, poll_listings_job
+from app.scraper.yad2_client import ItemDetail
 
 pytestmark = pytest.mark.asyncio
 
@@ -111,7 +112,11 @@ class TestEnrichAmenitiesJob:
 
         mock_amenities = Amenities(parking=True, elevator=True, shelter=False)
 
-        with patch('app.scheduler.jobs.fetch_item_detail', new_callable=AsyncMock, return_value=mock_amenities):
+        with patch(
+            'app.scheduler.jobs.fetch_item_detail',
+            new_callable=AsyncMock,
+            return_value=ItemDetail(amenities=mock_amenities, description='test desc'),
+        ):
             with patch('app.config.settings.request_delay_min', 0):
                 with patch('app.config.settings.request_delay_max', 0):
                     await enrich_amenities_job(batch_size=10)
@@ -120,6 +125,7 @@ class TestEnrichAmenitiesJob:
         assert saved.amenities.parking is True
         assert saved.amenities.elevator is True
         assert saved.amenities.shelter is False
+        assert saved.description == 'test desc'
 
     async def test_handles_fetch_failure(self):
         """Should count failures but continue processing."""
@@ -137,13 +143,13 @@ class TestEnrichAmenitiesJob:
         ).insert()
 
         # First call fails, second succeeds
-        mock_amenities = Amenities(parking=True)
+        mock_detail = ItemDetail(amenities=Amenities(parking=True), description='')
 
         with (
             patch(
                 'app.scheduler.jobs.fetch_item_detail',
                 new_callable=AsyncMock,
-                side_effect=[None, mock_amenities],
+                side_effect=[None, mock_detail],
             ),
             patch('app.config.settings.request_delay_min', 0),
             patch('app.config.settings.request_delay_max', 0),
@@ -173,7 +179,7 @@ class TestEnrichAmenitiesJob:
         async def mock_fetch(token, client):
             nonlocal call_count
             call_count += 1
-            return Amenities(parking=True)
+            return ItemDetail(amenities=Amenities(parking=True), description='')
 
         with patch('app.scheduler.jobs.fetch_item_detail', side_effect=mock_fetch):
             with patch('app.config.settings.request_delay_min', 0):

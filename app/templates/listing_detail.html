@@ -86,6 +86,9 @@
                     {% if listing.address.area %}
                     <p style="font-size: 0.8125rem; color: #aeaeb2; margin-top: 0.125rem;">{{ listing.address.area }}</p>
                     {% endif %}
+                    {% if listing.first_seen_at %}
+                    <p style="font-size: 0.75rem; color: #aeaeb2; margin-top: 0.25rem;">Published {{ listing.first_seen_at.strftime('%d/%m/%Y') }}</p>
+                    {% endif %}
                 </div>
                 {% if listing.price %}
                 <div style="font-size: 1.75rem; font-weight: 600; color: #0071e3;">{{ "{:,}".format(listing.price) }} ₪</div>

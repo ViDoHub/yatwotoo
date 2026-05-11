@@ -220,15 +220,16 @@ class TestFetchItemDetail:
         mock_client = AsyncMock()
         mock_client.get = AsyncMock(return_value=mock_response)
 
-        amenities = await fetch_item_detail('token123', client=mock_client)
-        assert amenities is not None
-        assert amenities.air_conditioning is True
-        assert amenities.elevator is True
-        assert amenities.shelter is True
-        assert amenities.pets_allowed is False
-        assert amenities.furnished is True
-        assert amenities.parking is True
-        assert amenities.balcony is True  # balconies=2 > 0
+        detail = await fetch_item_detail('token123', client=mock_client)
+        assert detail is not None
+        assert detail.amenities.air_conditioning is True
+        assert detail.amenities.elevator is True
+        assert detail.amenities.shelter is True
+        assert detail.amenities.pets_allowed is False
+        assert detail.amenities.furnished is True
+        assert detail.amenities.parking is True
+        assert detail.amenities.balcony is True  # balconies=2 > 0
+        assert detail.description == 'דירה מרווחת עם נוף לים'
 
     async def test_rate_limit_with_backoff(self):
         """Should retry on 429 with exponential backoff."""
@@ -243,9 +244,9 @@ class TestFetchItemDetail:
         mock_client.get = AsyncMock(side_effect=[response_429, response_200])
 
         with patch('app.scraper.yad2_client.asyncio.sleep', new_callable=AsyncMock) as mock_sleep:
-            amenities = await fetch_item_detail('token123', client=mock_client, _retries=3)
+            detail = await fetch_item_detail('token123', client=mock_client, _retries=3)
 
-        assert amenities is not None
+        assert detail is not None
         # Should have slept 30s on first attempt
         mock_sleep.assert_called_once_with(delay=30)
 
@@ -258,9 +259,9 @@ class TestFetchItemDetail:
         mock_client.get = AsyncMock(return_value=response_429)
 
         with patch('app.scraper.yad2_client.asyncio.sleep', new_callable=AsyncMock):
-            amenities = await fetch_item_detail('token123', client=mock_client, _retries=2)
+            detail = await fetch_item_detail('token123', client=mock_client, _retries=2)
 
-        assert amenities is None
+        assert detail is None
 
     async def test_non_retryable_error_returns_none(self):
         """Non-429/403 errors should not retry."""
@@ -283,9 +284,9 @@ class TestFetchItemDetail:
         mock_client = AsyncMock()
         mock_client.get = AsyncMock(return_value=mock_response)
 
-        amenities = await fetch_item_detail('token123', client=mock_client)
-        assert amenities.parking is False
-        assert amenities.balcony is False
+        detail = await fetch_item_detail('token123', client=mock_client)
+        assert detail.amenities.parking is False
+        assert detail.amenities.balcony is False
 
     async def test_parking_non_digit_is_false(self):
         mock_response = MagicMock()
@@ -295,12 +296,12 @@ class TestFetchItemDetail:
         mock_client = AsyncMock()
         mock_client.get = AsyncMock(return_value=mock_response)
 
-        amenities = await fetch_item_detail('token123', client=mock_client)
-        assert amenities.parking is False
+        detail = await fetch_item_detail('token123', client=mock_client)
+        assert detail.amenities.parking is False
 
     async def test_network_error_returns_none(self):
         mock_client = AsyncMock()
         mock_client.get = AsyncMock(side_effect=httpx.ConnectError('connection refused'))
 
-        amenities = await fetch_item_detail('token123', client=mock_client)
-        assert amenities is None
+        detail = await fetch_item_detail('token123', client=mock_client)
+        assert detail is None

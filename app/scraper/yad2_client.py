@@ -2,7 +2,7 @@ import asyncio
 import collections.abc
 import logging
 import random
-from typing import Any
+from typing import Any, NamedTuple
 
 import httpx
 from fake_useragent import UserAgent
@@ -494,14 +494,19 @@ _AMENITY_KEY_MAP = {
 }
 
 
+class ItemDetail(NamedTuple):
+    amenities: Amenities
+    description: str
+
+
 async def fetch_item_detail(
     token: str,
     client: httpx.AsyncClient | None = None,
     _retries: int = 3,
-) -> Amenities | None:
-    """Fetch individual listing detail to extract amenities.
+) -> ItemDetail | None:
+    """Fetch individual listing detail to extract amenities and description.
 
-    Returns an Amenities object or None on failure.
+    Returns an ItemDetail or None on failure.
     Uses browser headers and exponential backoff on rate-limit responses.
     """
     should_close: bool = client is None
@@ -548,7 +553,9 @@ async def fetch_item_detail(
         if balconies_val is not None:
             amenity_values['balcony'] = int(balconies_val) > 0 if str(object=balconies_val).isdigit() else False
 
-        return Amenities(**amenity_values)
+        description: str = data.get('info_text', '') or ''
+
+        return ItemDetail(amenities=Amenities(**amenity_values), description=description)
 
     except (httpx.HTTPError, ValueError, KeyError) as e:
         logger.debug(msg=f'Error fetching detail for {token}: {e}')

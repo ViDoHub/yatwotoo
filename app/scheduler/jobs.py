@@ -7,7 +7,7 @@ from typing import Any
 import httpx
 
 from app.consts import FilterParam, JobStatus
-from app.models import Amenities, DealType, Listing, SavedSearch, ScrapeJob
+from app.models import DealType, Listing, SavedSearch, ScrapeJob
 from app.notifications.dispatcher import notify_new_listing, notify_price_drop
 from app.scraper.sync import upsert_listings
 from app.scraper.yad2_client import REGIONS, _deep_fetch_region, fetch_all_listings, fetch_item_detail, parse_marker
@@ -209,9 +209,11 @@ async def enrich_amenities_job(batch_size: int = 1000) -> None:
 
     async with httpx.AsyncClient(timeout=15.0) as client:
         for listing in listings:
-            amenities: Amenities | None = await fetch_item_detail(token=listing.yad2_id, client=client)
-            if amenities:
-                listing.amenities = amenities
+            detail = await fetch_item_detail(token=listing.yad2_id, client=client)
+            if detail:
+                listing.amenities = detail.amenities
+                if detail.description:
+                    listing.description = detail.description
                 await listing.save()
                 enriched += 1
             else:
