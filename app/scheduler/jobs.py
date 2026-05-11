@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import random
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -178,17 +179,15 @@ async def backup_db_job() -> None:
             logger.info(msg=f'Removed old backup: {f}')
 
 
-async def enrich_amenities_job(batch_size: int = 1000) -> None:
-    """Fetch amenity details for listings that haven't been enriched yet.
+async def enrich_amenities_job(batch_size: int = 5000) -> None:
+    """Fetch amenity details and descriptions for un-enriched listings.
 
-    Processes up to batch_size listings per run, with rate limiting.
+    Processes up to batch_size listings per run with concurrent requests
+    (bounded by a local semaphore) and per-request rate limiting.
     Listings with all-None amenities are considered un-enriched.
     """
-    import httpx
-
     from app.config import settings
 
-    # Find listings where all amenity fields are None (never enriched)
     query: dict[str, bool | None] = {
         'is_active': True,
         'amenities.parking': None,
@@ -202,29 +201,34 @@ async def enrich_amenities_job(batch_size: int = 1000) -> None:
         logger.info(msg='Amenity enrichment: no un-enriched listings found')
         return
 
-    logger.info(msg=f'Amenity enrichment: processing {len(listings)} listings')
+    total: int = len(listings)
+    logger.info(msg=f'Amenity enrichment: processing {total} listings')
 
     enriched: int = 0
     failed: int = 0
+    sem: asyncio.Semaphore = asyncio.Semaphore(5)
+
+    async def _enrich_one(listing: Listing, client: httpx.AsyncClient) -> bool:
+        async with sem:
+            await asyncio.sleep(random.uniform(settings.request_delay_min, settings.request_delay_max))
+            detail = await fetch_item_detail(token=listing.yad2_id, client=client)
+        if detail:
+            listing.amenities = detail.amenities
+            if detail.description:
+                listing.description = detail.description
+            await listing.save()
+            return True
+        return False
 
     async with httpx.AsyncClient(timeout=15.0) as client:
-        for listing in listings:
-            detail = await fetch_item_detail(token=listing.yad2_id, client=client)
-            if detail:
-                listing.amenities = detail.amenities
-                if detail.description:
-                    listing.description = detail.description
-                await listing.save()
-                enriched += 1
-            else:
-                failed += 1
-
-            # Rate limit: respect Yad2 servers
-            delay: float = (
-                settings.request_delay_min
-                + (settings.request_delay_max - settings.request_delay_min) * __import__(name='random').random()
+        for i in range(0, total, 50):
+            chunk: list[Listing] = listings[i : i + 50]
+            results: list[bool] = await asyncio.gather(
+                *[_enrich_one(listing=item, client=client) for item in chunk],
             )
-            await __import__(name='asyncio').sleep(delay)
+            enriched += sum(results)
+            failed += len(results) - sum(results)
+            logger.info(msg=f'Amenity enrichment progress: {enriched + failed}/{total}')
 
     logger.info(msg=f'Amenity enrichment done: {enriched} enriched, {failed} failed')
 

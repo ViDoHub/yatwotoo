@@ -142,15 +142,16 @@ class TestEnrichAmenitiesJob:
             is_active=True,
         ).insert()
 
-        # First call fails, second succeeds
+        # Fail for 'fail1', succeed for 'success1'
         mock_detail = ItemDetail(amenities=Amenities(parking=True), description='')
 
+        async def _mock_fetch(token, client):
+            if token == 'fail1':
+                return None
+            return mock_detail
+
         with (
-            patch(
-                'app.scheduler.jobs.fetch_item_detail',
-                new_callable=AsyncMock,
-                side_effect=[None, mock_detail],
-            ),
+            patch('app.scheduler.jobs.fetch_item_detail', side_effect=_mock_fetch),
             patch('app.config.settings.request_delay_min', 0),
             patch('app.config.settings.request_delay_max', 0),
         ):
@@ -200,6 +201,26 @@ class TestEnrichAmenitiesJob:
         with patch('app.scheduler.jobs.fetch_item_detail', new_callable=AsyncMock) as mock_fetch:
             await enrich_amenities_job(batch_size=10)
             mock_fetch.assert_not_called()
+
+    async def test_saves_description_on_enrich(self):
+        """Enrichment should save description alongside amenities."""
+        await Listing(
+            yad2_id='desc_test',
+            deal_type=DealType.RENT,
+            amenities=Amenities(),
+            is_active=True,
+        ).insert()
+
+        detail = ItemDetail(amenities=Amenities(parking=True), description='דירה יפה מאוד')
+
+        with patch('app.scheduler.jobs.fetch_item_detail', new_callable=AsyncMock, return_value=detail):
+            with patch('app.config.settings.request_delay_min', 0):
+                with patch('app.config.settings.request_delay_max', 0):
+                    await enrich_amenities_job(batch_size=10)
+
+        saved = await Listing.find_one(Listing.yad2_id == 'desc_test')
+        assert saved.description == 'דירה יפה מאוד'
+        assert saved.amenities.parking is True
 
     async def test_partially_enriched_not_refetched(self):
         """Listings with at least one non-None amenity should be skipped."""
