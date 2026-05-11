@@ -41,6 +41,25 @@
         </div>
     </div>
 
+    <!-- Hidden Listings -->
+    {% if hidden_count > 0 %}
+    <a href="/listings/hidden" style="text-decoration: none; display: block; margin-bottom: 1.5rem;">
+        <div style="background: #fff8e1; border-radius: 16px; border: 1px solid #ffe082; padding: 1rem 1.5rem; display: flex; align-items: center; gap: 0.75rem; transition: background 0.15s;"
+             onmouseover="this.style.background='#fff3c4'" onmouseout="this.style.background='#fff8e1'">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f57f17" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
+            </svg>
+            <div>
+                <div style="font-size: 0.875rem; font-weight: 600; color: #f57f17;">{{ hidden_count }} Hidden Listing{{ 's' if hidden_count != 1 else '' }}</div>
+                <div style="font-size: 0.75rem; color: #f9a825;">Click to view and unhide</div>
+            </div>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f57f17" stroke-width="2.5" style="margin-left: auto;">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+            </svg>
+        </div>
+    </a>
+    {% endif %}
+
     <!-- Saved Searches -->
     <div style="background: white; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.03); margin-bottom: 1.5rem; overflow: hidden;">
         <div style="padding: 1.25rem 1.5rem; border-bottom: 1px solid rgba(0,0,0,0.04); display: flex; align-items: center; justify-content: space-between;">

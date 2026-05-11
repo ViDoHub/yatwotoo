@@ -270,12 +270,12 @@
 
     <!-- Filters sidebar -->
     <aside id="filter-sidebar" class="w-72 shrink-0 hidden lg:block">
-        <form id="filter-form" hx-get="/listings" hx-target="#list-container" hx-push-url="true"
+        <form id="filter-form" hx-get="{% if show_hidden is defined and show_hidden %}/listings/hidden{% else %}/listings{% endif %}" hx-target="#list-container" hx-push-url="true"
               class="filter-panel space-y-2.5">
             <div class="flex items-center justify-between">
                 <h2 class="text-sm font-semibold" style="color: var(--apple-text)">Filters</h2>
                 <div class="flex items-center gap-2">
-                    <a href="/listings" class="text-xs font-medium" style="color: var(--apple-blue)">Clear all</a>
+                    <a href="{% if show_hidden is defined and show_hidden %}/listings/hidden{% else %}/listings{% endif %}" class="text-xs font-medium" style="color: var(--apple-blue)">Clear all</a>
                     <button type="button" class="lg:hidden text-xs font-medium"
                             style="color: var(--apple-secondary)"
                             onclick="document.getElementById('filter-sidebar').classList.remove('mobile-open');document.getElementById('filter-toggle').classList.remove('filter-fab-hidden');">Close</button>
@@ -416,6 +416,23 @@
                     Map
                 </button>
             </div>
+            {% if hidden_count is defined and hidden_count > 0 and not show_hidden is defined %}
+            <a href="/listings/hidden"
+               style="display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.375rem 0.75rem; background: #fff8e1; border-radius: 20px; border: 1px solid #ffe082; text-decoration: none; color: #f57f17; font-size: 0.75rem; font-weight: 500; transition: background 0.15s; white-space: nowrap;"
+               onmouseover="this.style.background='#fff3c4'" onmouseout="this.style.background='#fff8e1'">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
+                </svg>
+                {{ hidden_count }} hidden
+            </a>
+            {% elif show_hidden is defined and show_hidden %}
+            <span style="display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.375rem 0.75rem; background: #fff8e1; border-radius: 20px; border: 1px solid #ffe082; color: #f57f17; font-size: 0.75rem; font-weight: 500; white-space: nowrap;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
+                </svg>
+                {{ hidden_count }} hidden
+            </span>
+            {% endif %}
         </div>
 
         <!-- List view -->
@@ -472,7 +489,9 @@
         // Load on init if cities are pre-selected
         if (tsCity.getValue().length) loadNeighborhoods();
         // Persist current listings URL for back-navigation from detail pages
+    {% if not show_hidden is defined or not show_hidden %}
         sessionStorage.setItem('listingsUrl', window.location.pathname + window.location.search);
+    {% endif %}
 
         // Close mobile filter panel when clicking outside the form
         document.addEventListener('click', (e) => {
@@ -498,7 +517,9 @@
 
     // Update stored URL after HTMX pushes new URL
     document.body.addEventListener('htmx:pushedIntoHistory', () => {
+        {% if not show_hidden is defined or not show_hidden %}
         sessionStorage.setItem('listingsUrl', window.location.pathname + window.location.search);
+        {% endif %}
     });
 
     // -- View toggle --

@@ -13,8 +13,12 @@ class SearchFilters:
     def __init__(self, filters: dict[str, Any]) -> None:
         self.filters: dict[str, Any] = filters
 
-    def build_query(self) -> dict[str, Any]:
+    def build_query(self, *, hidden_only: bool = False) -> dict[str, Any]:
         query: dict[str, Any] = {'is_active': True}
+        if hidden_only:
+            query['is_hidden'] = True
+        else:
+            query['is_hidden'] = {'$ne': True}
 
         # Deal type filter
         if deal_type := self.filters.get(FilterParam.DEAL_TYPE):
@@ -156,13 +160,15 @@ async def search_listings(
     filters: dict[str, Any],
     page: int = 1,
     page_size: int = 20,
+    *,
+    hidden_only: bool = False,
 ) -> tuple[list[Listing], int]:
     """Search listings with filters, sorting, and pagination.
 
     Returns (listings, total_count).
     """
     search: SearchFilters = SearchFilters(filters)
-    query: dict[str, Any] = search.build_query()
+    query: dict[str, Any] = search.build_query(hidden_only=hidden_only)
     sort: list[tuple[str, int]] = search.get_sort()
 
     total: int = await Listing.find(query).count()

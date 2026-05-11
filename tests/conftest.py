@@ -21,6 +21,12 @@ from app.models import (
 DOCUMENT_MODELS = [Listing, SavedSearch, PriceHistory, NotificationLog, UserSettings, ScrapeJob]
 
 
+def get_collection(model):
+    """Get the motor collection for a Beanie model (works with Beanie 1.x and 2.x)."""
+    getter = getattr(model, 'get_motor_collection', None) or model.get_pymongo_collection
+    return getter()
+
+
 @pytest_asyncio.fixture(autouse=True)
 async def setup_beanie():
     """Initialize Beanie with a clean test database before each test."""
@@ -29,11 +35,11 @@ async def setup_beanie():
     await init_beanie(database=db, document_models=DOCUMENT_MODELS)
     # Clean all collections before each test
     for model in DOCUMENT_MODELS:
-        await model.get_motor_collection().drop()
+        await get_collection(model).drop()
     yield
     # Cleanup after test
     for model in DOCUMENT_MODELS:
-        await model.get_motor_collection().drop()
+        await get_collection(model).drop()
     client.close()
 
 

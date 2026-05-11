@@ -2,7 +2,7 @@ import logging
 from typing import Any
 
 from fastapi import APIRouter, Query, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 
 from app.consts import GEO_TYPE_POLYGON, FilterParam, JobStatus
 from app.models import AmenityFilter, DealType, Listing, SavedSearch, ScrapeJob
@@ -38,7 +38,7 @@ async def get_markers(
     shelter: str = Query(default=''),
 ) -> JSONResponse:
     """Return listing markers within a bounding box (viewport) with optional filters."""
-    query: dict[str, Any] = {'is_active': True}
+    query: dict[str, Any] = {'is_active': True, 'is_hidden': {'$ne': True}}
 
     # Only apply geo filter if bounds are provided
     if all(v is not None for v in (south, west, north, east)):
@@ -194,9 +194,17 @@ async def scrape_status() -> JSONResponse:
         sort=[('started_at', -1)],
     )
 
-    total_listings: int = await Listing.find(Listing.is_active == True).count()  # noqa: E712
-    rent_count: int = await Listing.find(Listing.is_active == True, Listing.deal_type == DealType.RENT).count()  # noqa: E712
-    forsale_count: int = await Listing.find(Listing.is_active == True, Listing.deal_type == DealType.FORSALE).count()  # noqa: E712
+    total_listings: int = await Listing.find(Listing.is_active == True, Listing.is_hidden != True).count()  # noqa: E712
+    rent_count: int = await Listing.find(
+        Listing.is_active == True,  # noqa: E712
+        Listing.is_hidden != True,  # noqa: E712
+        Listing.deal_type == DealType.RENT,
+    ).count()
+    forsale_count: int = await Listing.find(
+        Listing.is_active == True,  # noqa: E712
+        Listing.is_hidden != True,  # noqa: E712
+        Listing.deal_type == DealType.FORSALE,
+    ).count()
 
     result: dict[str, Any] = {
         'total_listings': total_listings,
@@ -223,6 +231,32 @@ async def scrape_status() -> JSONResponse:
         result['job'] = None
 
     return JSONResponse(content=result)
+
+
+@router.post(path='/listings/{yad2_id}/hide')
+async def hide_listing(request: Request, yad2_id: str) -> Response:
+    """Hide a listing so it no longer appears in search results."""
+    listing: Listing | None = await Listing.find_one(Listing.yad2_id == yad2_id)
+    if not listing:
+        return JSONResponse(content={'status': 'error', 'message': 'Listing not found'}, status_code=404)
+    listing.is_hidden = True
+    await listing.save()
+    if request.headers.get('HX-Request'):
+        return HTMLResponse(content='')
+    return JSONResponse(content={'status': 'ok', 'yad2_id': yad2_id, 'is_hidden': True})
+
+
+@router.post(path='/listings/{yad2_id}/unhide')
+async def unhide_listing(request: Request, yad2_id: str) -> Response:
+    """Unhide a previously hidden listing."""
+    listing: Listing | None = await Listing.find_one(Listing.yad2_id == yad2_id)
+    if not listing:
+        return JSONResponse(content={'status': 'error', 'message': 'Listing not found'}, status_code=404)
+    listing.is_hidden = False
+    await listing.save()
+    if request.headers.get('HX-Request'):
+        return HTMLResponse(content='')
+    return JSONResponse(content={'status': 'ok', 'yad2_id': yad2_id, 'is_hidden': False})
 
 
 @router.get(path='/neighborhoods')

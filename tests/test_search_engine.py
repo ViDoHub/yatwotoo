@@ -20,7 +20,7 @@ pytestmark: MarkDecorator = pytest.mark.asyncio
 def test_build_query_empty_filters_returns_active_only():
     sf = SearchFilters(filters={})
     query: dict[str, Any] = sf.build_query()
-    assert query == {'is_active': True}
+    assert query == {'is_active': True, 'is_hidden': {'$ne': True}}
 
 
 @pytest.mark.parametrize(

@@ -23,41 +23,13 @@ router = APIRouter()
 templates = Jinja2Templates(directory='app/templates')
 
 
-@router.get(path='/', response_class=HTMLResponse)
-async def dashboard(request: Request) -> Response:
-    """Dashboard: active searches, recent notifications, stats."""
-    saved_searches: list[SavedSearch] = await SavedSearch.find(SavedSearch.is_active == True).to_list()  # noqa: E712
-    total_listings: int = await Listing.find(Listing.is_active == True).count()  # noqa: E712
-    rent_count: int = await Listing.find(Listing.is_active == True, Listing.deal_type == DealType.RENT).count()  # noqa: E712
-    forsale_count: int = await Listing.find(Listing.is_active == True, Listing.deal_type == DealType.FORSALE).count()  # noqa: E712
-    recent_notifications: list[NotificationLog] = (
-        await NotificationLog.find().sort([('sent_at', -1)]).limit(10).to_list()
-    )
-
-    return templates.TemplateResponse(
-        request,
-        name=TEMPLATE_DASHBOARD,
-        context={
-            'saved_searches': saved_searches,
-            'total_listings': total_listings,
-            'rent_count': rent_count,
-            'forsale_count': forsale_count,
-            'recent_notifications': recent_notifications,
-        },
-    )
-
-
-@router.get(path='/listings', response_class=HTMLResponse)
-async def listings_page(request: Request) -> Response:
-    """Browse listings with filters."""
+def _parse_filters(request: Request) -> tuple[dict[str, Any], dict[str, str]]:
+    """Extract search filters from query params. Returns (filters, params)."""
     params: dict[str, str] = dict(request.query_params)
-
-    # Build filters from query params
     filters: dict[str, Any] = {}
+
     if deal_type := params.get(FilterParam.DEAL_TYPE):
         filters[FilterParam.DEAL_TYPE] = deal_type
-    # Multi-value params: getlist handles repeated keys (e.g. cities=A&cities=B)
-    # and split handles comma-separated (e.g. cities=A,B)
     if cities_raw := request.query_params.getlist(key=FilterParam.CITIES):
         cities_list: list[str] = []
         for c in cities_raw:
@@ -78,7 +50,7 @@ async def listings_page(request: Request) -> Response:
         if hoods:
             filters[FilterParam.NEIGHBORHOODS] = hoods
     if top_area_ids_raw := request.query_params.getlist(key=FilterParam.TOP_AREA_IDS):
-        ids: list[str] = []
+        ids = []
         for a in top_area_ids_raw:
             ids.extend(a.split(sep=','))
         filters[FilterParam.TOP_AREA_IDS] = [int(a) for a in ids if a]
@@ -99,18 +71,15 @@ async def listings_page(request: Request) -> Response:
     if floor_max := params.get(FilterParam.FLOOR_MAX):
         filters[FilterParam.FLOOR_MAX] = floor_max
 
-    # Boolean filters
     for amenity in AmenityFilter:
         if params.get(amenity):
             filters[amenity] = True
 
-    # Geo radius
     if params.get(FilterParam.CENTER_LAT) and params.get(FilterParam.CENTER_LNG) and params.get(FilterParam.RADIUS_KM):
         filters[FilterParam.CENTER_LAT] = params[FilterParam.CENTER_LAT]
         filters[FilterParam.CENTER_LNG] = params[FilterParam.CENTER_LNG]
         filters[FilterParam.RADIUS_KM] = params[FilterParam.RADIUS_KM]
 
-    # Geo polygon
     if geo_polygon := params.get(FilterParam.GEO_POLYGON):
         import json as _json
 
@@ -119,7 +88,6 @@ async def listings_page(request: Request) -> Response:
         except (ValueError, TypeError):
             pass
 
-    # Sort (multi-select)
     if sort_by_raw := request.query_params.getlist(key=FilterParam.SORT_BY):
         sort_list: list[str] = []
         for s in sort_by_raw:
@@ -128,6 +96,48 @@ async def listings_page(request: Request) -> Response:
         if sort_list:
             filters[FilterParam.SORT_BY] = sort_list
 
+    return filters, params
+
+
+@router.get(path='/', response_class=HTMLResponse)
+async def dashboard(request: Request) -> Response:
+    """Dashboard: active searches, recent notifications, stats."""
+    saved_searches: list[SavedSearch] = await SavedSearch.find(SavedSearch.is_active == True).to_list()  # noqa: E712
+    total_listings: int = await Listing.find(Listing.is_active == True, Listing.is_hidden != True).count()  # noqa: E712
+    rent_count: int = await Listing.find(
+        Listing.is_active == True,  # noqa: E712
+        Listing.is_hidden != True,  # noqa: E712
+        Listing.deal_type == DealType.RENT,
+    ).count()
+    forsale_count: int = await Listing.find(
+        Listing.is_active == True,  # noqa: E712
+        Listing.is_hidden != True,  # noqa: E712
+        Listing.deal_type == DealType.FORSALE,
+    ).count()
+    hidden_count: int = await Listing.find(Listing.is_active == True, Listing.is_hidden == True).count()  # noqa: E712
+    recent_notifications: list[NotificationLog] = (
+        await NotificationLog.find().sort([('sent_at', -1)]).limit(10).to_list()
+    )
+
+    return templates.TemplateResponse(
+        request,
+        name=TEMPLATE_DASHBOARD,
+        context={
+            'saved_searches': saved_searches,
+            'total_listings': total_listings,
+            'rent_count': rent_count,
+            'forsale_count': forsale_count,
+            'hidden_count': hidden_count,
+            'recent_notifications': recent_notifications,
+        },
+    )
+
+
+@router.get(path='/listings', response_class=HTMLResponse)
+async def listings_page(request: Request) -> Response:
+    """Browse listings with filters."""
+    filters, params = _parse_filters(request)
+
     page: int = int(params.get(FilterParam.PAGE, 1))
     listings: list[Listing]
     total: int
@@ -135,6 +145,7 @@ async def listings_page(request: Request) -> Response:
     total_pages: int = math.ceil(total / 20) if total > 0 else 1
 
     area_counts: dict[int, int] = await get_area_counts()
+    hidden_count: int = await Listing.find(Listing.is_active == True, Listing.is_hidden == True).count()  # noqa: E712
 
     # Build pagination query string (all params except page)
     pagination_qs: str = urlencode(
@@ -153,6 +164,7 @@ async def listings_page(request: Request) -> Response:
                 'total_pages': total_pages,
                 'filters': filters,
                 'pagination_qs': pagination_qs,
+                'hidden_count': hidden_count,
             },
         )
 
@@ -173,6 +185,62 @@ async def listings_page(request: Request) -> Response:
             'view_mode': params.get(FilterParam.VIEW, ViewMode.LIST),
             'selected_neighborhoods': filters.get(FilterParam.NEIGHBORHOODS, []),
             'pagination_qs': pagination_qs,
+            'hidden_count': hidden_count,
+        },
+    )
+
+
+@router.get(path='/listings/hidden', response_class=HTMLResponse)
+async def hidden_listings_page(request: Request) -> Response:
+    """View hidden listings with option to unhide."""
+    filters, params = _parse_filters(request)
+    page: int = int(params.get(FilterParam.PAGE, 1))
+    page_size: int = 20
+
+    listings, total = await search_listings(filters=filters, page=page, page_size=page_size, hidden_only=True)
+    total_pages: int = math.ceil(total / page_size) if total > 0 else 1
+
+    area_counts: dict[int, int] = await get_area_counts()
+
+    pagination_qs: str = urlencode(
+        [(k, v) for k, v in request.query_params.multi_items() if k != FilterParam.PAGE],
+    )
+
+    if request.headers.get(HX_REQUEST):
+        return templates.TemplateResponse(
+            request=request,
+            name=TEMPLATE_LISTING_LIST_PARTIAL,
+            context={
+                'listings': listings,
+                'total': total,
+                'page': page,
+                'total_pages': total_pages,
+                'filters': filters,
+                'pagination_qs': pagination_qs,
+                'hidden_count': total,
+                'show_hidden': True,
+            },
+        )
+
+    return templates.TemplateResponse(
+        request=request,
+        name=TEMPLATE_LISTINGS,
+        context={
+            'listings': listings,
+            'total': total,
+            'page': page,
+            'total_pages': total_pages,
+            'filters': filters,
+            'params': params,
+            'top_areas': TOP_AREAS,
+            'areas': AREAS,
+            'cities': CITIES,
+            'area_counts': area_counts,
+            'view_mode': ViewMode.LIST,
+            'selected_neighborhoods': filters.get(FilterParam.NEIGHBORHOODS, []),
+            'pagination_qs': pagination_qs,
+            'hidden_count': total,
+            'show_hidden': True,
         },
     )
 

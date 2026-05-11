@@ -85,6 +85,7 @@ class Listing(Document):
     first_seen_at: datetime = Field(default_factory=lambda: datetime(1970, 1, 1, tzinfo=UTC))
     last_seen_at: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
     is_active: bool = True
+    is_hidden: bool = False
 
     class Settings:
         name = 'listings'
@@ -95,6 +96,7 @@ class Listing(Document):
             'address.city',
             'address.neighborhood',
             'is_active',
+            'is_hidden',
             [('location', '2dsphere')],
         ]
 

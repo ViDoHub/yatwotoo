@@ -215,13 +215,45 @@
             {% endif %}
 
             <!-- Link to Yad2 -->
-            <a href="{{ listing.url }}" target="_blank" rel="noopener"
-               style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.5rem; background: #0071e3; color: white; font-size: 0.875rem; font-weight: 500; border-radius: 12px; text-decoration: none; transition: background 0.15s;">
-                View on Yad2
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/>
-                </svg>
-            </a>
+            <div class="flex items-center gap-3 flex-wrap">
+                <a href="{{ listing.url }}" target="_blank" rel="noopener"
+                   style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.5rem; background: #0071e3; color: white; font-size: 0.875rem; font-weight: 500; border-radius: 12px; text-decoration: none; transition: background 0.15s;">
+                    View on Yad2
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/>
+                    </svg>
+                </a>
+                {% if listing.is_hidden %}
+                <button id="hide-toggle-btn"
+                        onclick="toggleHide('{{ listing.yad2_id }}', false)"
+                        style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.5rem; background: #f5f5f7; color: #34c759; font-size: 0.875rem; font-weight: 500; border-radius: 12px; border: none; cursor: pointer; transition: background 0.15s;"
+                        onmouseover="this.style.background='#eef8ee'" onmouseout="this.style.background='#f5f5f7'">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                    </svg>
+                    Unhide Listing
+                </button>
+                {% else %}
+                <button id="hide-toggle-btn"
+                        onclick="toggleHide('{{ listing.yad2_id }}', true)"
+                        style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.5rem; background: #f5f5f7; color: #86868b; font-size: 0.875rem; font-weight: 500; border-radius: 12px; border: none; cursor: pointer; transition: background 0.15s;"
+                        onmouseover="this.style.background='#fff0f0'; this.style.color='#ff3b30'" onmouseout="this.style.background='#f5f5f7'; this.style.color='#86868b'">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
+                    </svg>
+                    Hide Listing
+                </button>
+                {% endif %}
+            </div>
+
+            <script>
+            async function toggleHide(yad2Id, hide) {
+                const action = hide ? 'hide' : 'unhide';
+                const res = await fetch(`/api/listings/${yad2Id}/${action}`, { method: 'POST' });
+                if (res.ok) location.reload();
+            }
+            </script>
         </div>
     </div>
 </div>

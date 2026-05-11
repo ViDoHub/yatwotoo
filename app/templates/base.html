@@ -49,7 +49,7 @@
             </a>
             <div class="flex items-center gap-1">
                 <a href="/" class="nav-link">Home</a>
-                <a href="/listings" class="nav-link">Listings</a>
+                <a href="/listings" id="nav-listings" class="nav-link">Listings</a>
                 <a href="/settings" class="nav-link">Settings</a>
             </div>
         </div>
@@ -58,6 +58,15 @@
     <main class="max-w-6xl mx-auto px-6 py-8">
         {% block content %}{% endblock %}
     </main>
+
+    <script>
+    (function() {
+        var stored = sessionStorage.getItem('listingsUrl');
+        if (stored) {
+            document.getElementById('nav-listings').href = stored;
+        }
+    })();
+    </script>
 
     <footer class="text-center py-6" style="color: var(--apple-secondary); font-size: 0.75rem;">
         YaTwoToo
