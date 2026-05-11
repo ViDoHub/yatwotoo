@@ -129,7 +129,7 @@
             <div class="mb-8">
                 <h3 style="font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: #86868b; margin-bottom: 0.75rem;">Amenities</h3>
                 <div class="flex flex-wrap gap-2">
-                    {% if listing.amenities.parking %}<span style="background: #e8f5e9; color: #2e7d32; font-size: 0.75rem; font-weight: 500; padding: 0.375rem 0.75rem; border-radius: 20px;">Parking</span>{% endif %}
+                    {% if listing.amenities.parking %}<span style="background: #e8f5e9; color: #2e7d32; font-size: 0.75rem; font-weight: 500; padding: 0.375rem 0.75rem; border-radius: 20px;">Parking{% if listing.parking_spots and listing.parking_spots > 1 %} ({{ listing.parking_spots }}){% endif %}</span>{% endif %}
                     {% if listing.amenities.elevator %}<span style="background: #e8f5e9; color: #2e7d32; font-size: 0.75rem; font-weight: 500; padding: 0.375rem 0.75rem; border-radius: 20px;">Elevator</span>{% endif %}
                     {% if listing.amenities.balcony %}<span style="background: #e8f5e9; color: #2e7d32; font-size: 0.75rem; font-weight: 500; padding: 0.375rem 0.75rem; border-radius: 20px;">Balcony</span>{% endif %}
                     {% if listing.amenities.air_conditioning %}<span style="background: #e8f5e9; color: #2e7d32; font-size: 0.75rem; font-weight: 500; padding: 0.375rem 0.75rem; border-radius: 20px;">A/C</span>{% endif %}

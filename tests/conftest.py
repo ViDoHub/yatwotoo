@@ -149,7 +149,7 @@ def sample_detail_response():
                 {'key': 'warhouse', 'value': True},
                 {'key': 'for_partners', 'value': False},
             ],
-            'parking': '1',
+            'parking': '2',
             'balconies': '2',
             'info_text': 'דירה מרווחת עם נוף לים',
             'images_urls': [

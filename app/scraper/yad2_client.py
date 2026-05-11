@@ -509,6 +509,7 @@ class ItemDetail(NamedTuple):
     house_committee: str = ''
     total_floors: int | None = None
     contact_name: str = ''
+    parking_spots: int | None = None
     garden_area: int | None = None
     payments_in_year: int | None = None
 
@@ -559,8 +560,11 @@ async def fetch_item_detail(
 
         # Parking: top-level numeric field (>0 means has parking)
         parking_val: Any | None = data.get('parking')
+        parking_spots: int | None = None
         if parking_val is not None:
-            amenity_values['parking'] = int(parking_val) > 0 if str(object=parking_val).isdigit() else False
+            parking_num: int | None = _parse_int(parking_val)
+            amenity_values['parking'] = (parking_num or 0) > 0
+            parking_spots = parking_num
 
         # Balcony: top-level numeric field
         balconies_val: Any | None = data.get('balconies')
@@ -610,6 +614,7 @@ async def fetch_item_detail(
             house_committee=house_committee,
             total_floors=total_floors,
             contact_name=contact_name,
+            parking_spots=parking_spots,
             garden_area=garden_area,
             payments_in_year=payments_in_year,
         )

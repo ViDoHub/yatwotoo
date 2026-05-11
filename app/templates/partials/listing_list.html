@@ -86,7 +86,7 @@
                 <!-- Amenity badges -->
                 {% if listing.amenities %}
                 <div class="flex flex-wrap gap-1.5 mt-2.5">
-                    {% if listing.amenities.parking %}<span style="font-size: 0.6875rem; background: #f5f5f7; color: #86868b; padding: 3px 8px; border-radius: 20px;">Parking</span>{% endif %}
+                    {% if listing.amenities.parking %}<span style="font-size: 0.6875rem; background: #f5f5f7; color: #86868b; padding: 3px 8px; border-radius: 20px;">Parking{% if listing.parking_spots and listing.parking_spots > 1 %} ({{ listing.parking_spots }}){% endif %}</span>{% endif %}
                     {% if listing.amenities.elevator %}<span style="font-size: 0.6875rem; background: #f5f5f7; color: #86868b; padding: 3px 8px; border-radius: 20px;">Elevator</span>{% endif %}
                     {% if listing.amenities.balcony %}<span style="font-size: 0.6875rem; background: #f5f5f7; color: #86868b; padding: 3px 8px; border-radius: 20px;">Balcony</span>{% endif %}
                     {% if listing.amenities.air_conditioning %}<span style="font-size: 0.6875rem; background: #f5f5f7; color: #86868b; padding: 3px 8px; border-radius: 20px;">A/C</span>{% endif %}

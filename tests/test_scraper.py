@@ -245,6 +245,7 @@ class TestFetchItemDetail:
         assert detail.house_committee == '300 ₪'
         assert detail.total_floors == 7
         assert detail.contact_name == 'יוסף'
+        assert detail.parking_spots == 2
         assert detail.garden_area == 0
         assert detail.payments_in_year == 12
 
@@ -304,6 +305,7 @@ class TestFetchItemDetail:
         detail = await fetch_item_detail('token123', client=mock_client)
         assert detail.amenities.parking is False
         assert detail.amenities.balcony is False
+        assert detail.parking_spots == 0
 
     async def test_parking_non_digit_is_false(self):
         mock_response = MagicMock()
@@ -315,6 +317,7 @@ class TestFetchItemDetail:
 
         detail = await fetch_item_detail('token123', client=mock_client)
         assert detail.amenities.parking is False
+        assert detail.parking_spots is None
 
     async def test_network_error_returns_none(self):
         mock_client = AsyncMock()

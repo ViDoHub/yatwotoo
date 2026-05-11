@@ -232,6 +232,8 @@ async def enrich_amenities_job(batch_size: int = 5000) -> None:
                 listing.total_floors = detail.total_floors
             if detail.contact_name:
                 listing.contact_name = detail.contact_name
+            if detail.parking_spots is not None:
+                listing.parking_spots = detail.parking_spots
             if detail.garden_area is not None:
                 listing.garden_area = detail.garden_area
             if detail.payments_in_year is not None:

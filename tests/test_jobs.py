@@ -126,6 +126,7 @@ class TestEnrichAmenitiesJob:
                 house_committee='200 ₪',
                 total_floors=5,
                 contact_name='דני',
+                parking_spots=2,
                 garden_area=30,
                 payments_in_year=12,
             ),
@@ -147,6 +148,7 @@ class TestEnrichAmenitiesJob:
         assert saved.house_committee == '200 ₪'
         assert saved.total_floors == 5
         assert saved.contact_name == 'דני'
+        assert saved.parking_spots == 2
         assert saved.garden_area == 30
         assert saved.payments_in_year == 12
 

@@ -79,6 +79,7 @@ class Listing(Document):
     house_committee: str = ''  # va'ad bayit fee
     total_floors: int | None = None  # total floors in building
     contact_name: str = ''  # landlord/agent name
+    parking_spots: int | None = None  # number of parking spots
     garden_area: int | None = None  # garden sqm
     payments_in_year: int | None = None  # payment installments
     first_seen_at: datetime = Field(default_factory=lambda: datetime(1970, 1, 1, tzinfo=UTC))
