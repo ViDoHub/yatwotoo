@@ -6,7 +6,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from app.areas import AREAS, CITIES, TOP_AREAS
-from app.models import DealType, Listing, NotificationLog, SavedSearch
+from app.models import DealType, Listing, NotificationLog, PriceHistory, SavedSearch
 from app.search.engine import get_area_counts, search_listings
 
 router = APIRouter()
@@ -16,11 +16,13 @@ templates = Jinja2Templates(directory='app/templates')
 @router.get('/', response_class=HTMLResponse)
 async def dashboard(request: Request) -> Response:
     """Dashboard: active searches, recent notifications, stats."""
-    saved_searches = await SavedSearch.find(SavedSearch.is_active == True).to_list()  # noqa: E712
-    total_listings = await Listing.find(Listing.is_active == True).count()  # noqa: E712
-    rent_count = await Listing.find(Listing.is_active == True, Listing.deal_type == DealType.RENT).count()  # noqa: E712
-    forsale_count = await Listing.find(Listing.is_active == True, Listing.deal_type == DealType.FORSALE).count()  # noqa: E712
-    recent_notifications = await NotificationLog.find().sort([('sent_at', -1)]).limit(10).to_list()
+    saved_searches: list[SavedSearch] = await SavedSearch.find(SavedSearch.is_active == True).to_list()  # noqa: E712
+    total_listings: int = await Listing.find(Listing.is_active == True).count()  # noqa: E712
+    rent_count: int = await Listing.find(Listing.is_active == True, Listing.deal_type == DealType.RENT).count()  # noqa: E712
+    forsale_count: int = await Listing.find(Listing.is_active == True, Listing.deal_type == DealType.FORSALE).count()  # noqa: E712
+    recent_notifications: list[NotificationLog] = (
+        await NotificationLog.find().sort([('sent_at', -1)]).limit(10).to_list()
+    )
 
     return templates.TemplateResponse(
         request,
@@ -38,7 +40,7 @@ async def dashboard(request: Request) -> Response:
 @router.get('/listings', response_class=HTMLResponse)
 async def listings_page(request: Request) -> Response:
     """Browse listings with filters."""
-    params = dict(request.query_params)
+    params: dict[str, str] = dict(request.query_params)
 
     # Build filters from query params
     filters: dict[str, Any] = {}
@@ -88,7 +90,7 @@ async def listings_page(request: Request) -> Response:
         filters['floor_max'] = floor_max
 
     # Boolean filters
-    for amenity in ['parking', 'elevator', 'balcony', 'pets_allowed', 'air_conditioning', 'furnished', 'mamad']:
+    for amenity in ['parking', 'elevator', 'balcony', 'pets_allowed', 'air_conditioning', 'furnished', 'shelter']:
         if params.get(amenity):
             filters[amenity] = True
 
@@ -110,11 +112,13 @@ async def listings_page(request: Request) -> Response:
     # Sort
     filters['sort_by'] = params.get('sort_by', 'newest')
 
-    page = int(params.get('page', 1))
+    page: int = int(params.get('page', 1))
+    listings: list[Listing]
+    total: int
     listings, total = await search_listings(filters, page=page, page_size=20)
-    total_pages = math.ceil(total / 20) if total > 0 else 1
+    total_pages: int = math.ceil(total / 20) if total > 0 else 1
 
-    area_counts = await get_area_counts()
+    area_counts: dict[int, int] = await get_area_counts()
 
     # If htmx request, return partial
     if request.headers.get('HX-Request'):
@@ -153,13 +157,13 @@ async def listings_page(request: Request) -> Response:
 @router.get('/listings/{yad2_id}', response_class=HTMLResponse)
 async def listing_detail(request: Request, yad2_id: str) -> Response:
     """Single listing detail page."""
-    listing = await Listing.find_one(Listing.yad2_id == yad2_id)
+    listing: Listing | None = await Listing.find_one(Listing.yad2_id == yad2_id)
     if not listing:
         return HTMLResponse('Listing not found', status_code=404)
 
-    from app.models import PriceHistory
-
-    price_history = await PriceHistory.find(PriceHistory.listing_id == yad2_id).sort([('observed_at', 1)]).to_list()
+    price_history: list[PriceHistory] = (
+        await PriceHistory.find(PriceHistory.listing_id == yad2_id).sort([('observed_at', 1)]).to_list()
+    )
 
     return templates.TemplateResponse(
         request,

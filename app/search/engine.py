@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 from app.models import Listing
 
@@ -8,11 +9,11 @@ logger = logging.getLogger(__name__)
 class SearchFilters:
     """Build MongoDB query from search filter parameters."""
 
-    def __init__(self, filters: dict) -> None:
+    def __init__(self, filters: dict[str, Any]) -> None:
         self.filters = filters
 
-    def build_query(self) -> dict:
-        query: dict = {'is_active': True}
+    def build_query(self) -> dict[str, Any]:
+        query: dict[str, Any] = {'is_active': True}
 
         # Deal type filter
         if deal_type := self.filters.get('deal_type'):
@@ -62,7 +63,7 @@ class SearchFilters:
             query.setdefault('floor', {})['$lte'] = int(floor_max)
 
         # Boolean amenities - match only True (confirmed)
-        for amenity in ['parking', 'elevator', 'balcony', 'pets_allowed', 'air_conditioning', 'furnished', 'mamad']:
+        for amenity in ['parking', 'elevator', 'balcony', 'pets_allowed', 'air_conditioning', 'furnished', 'shelter']:
             if self.filters.get(amenity):
                 query[f'amenities.{amenity}'] = True
 
@@ -84,7 +85,7 @@ class SearchFilters:
         # Geographic polygon search (using MongoDB $geoWithin)
         if (geo_polygon := self.filters.get('geo_polygon')) and isinstance(geo_polygon, list) and len(geo_polygon) >= 4:
             # Ensure polygon is closed
-            coords = [[float(c[0]), float(c[1])] for c in geo_polygon]
+            coords: list[list[float]] = [[float(c[0]), float(c[1])] for c in geo_polygon]
             if coords[0] != coords[-1]:
                 coords.append(coords[0])
             query['location'] = {
@@ -100,9 +101,9 @@ class SearchFilters:
 
     def get_sort(self) -> list[tuple[str, int]]:
         """Return sort specification based on filters."""
-        sort_by = self.filters.get('sort_by', 'newest')
+        sort_by: str = self.filters.get('sort_by', 'newest')
 
-        sort_map = {
+        sort_map: dict[str, list[tuple[str, int]]] = {
             'newest': [('first_seen_at', -1)],
             'price_asc': [('price', 1)],
             'price_desc': [('price', -1)],
@@ -116,7 +117,7 @@ class SearchFilters:
 
 
 async def search_listings(
-    filters: dict,
+    filters: dict[str, Any],
     page: int = 1,
     page_size: int = 20,
 ) -> tuple[list[Listing], int]:
@@ -124,36 +125,36 @@ async def search_listings(
 
     Returns (listings, total_count).
     """
-    search = SearchFilters(filters)
-    query = search.build_query()
-    sort = search.get_sort()
+    search: SearchFilters = SearchFilters(filters)
+    query: dict[str, Any] = search.build_query()
+    sort: list[tuple[str, int]] = search.get_sort()
 
-    total = await Listing.find(query).count()
+    total: int = await Listing.find(query).count()
 
-    skip = (page - 1) * page_size
-    listings = await Listing.find(query).sort(sort).skip(skip).limit(page_size).to_list()
+    skip: int = (page - 1) * page_size
+    listings: list[Listing] = await Listing.find(query).sort(sort).skip(skip).limit(page_size).to_list()
 
     return listings, total
 
 
-async def match_saved_search(filters: dict, listing: Listing) -> bool:
+async def match_saved_search(filters: dict[str, Any], listing: Listing) -> bool:
     """Check if a listing matches a saved search's filters."""
-    search = SearchFilters(filters)
-    query = search.build_query()
+    search: SearchFilters = SearchFilters(filters)
+    query: dict[str, Any] = search.build_query()
 
     # Add the specific listing ID to the query
     query['yad2_id'] = listing.yad2_id
 
-    match = await Listing.find_one(query)
+    match: Listing | None = await Listing.find_one(query)
     return match is not None
 
 
 async def get_area_counts() -> dict[int, int]:
     """Get count of active listings per area_id for filter display."""
-    pipeline = [
+    pipeline: list[dict[str, Any]] = [
         {'$match': {'is_active': True, 'address.area_id': {'$gt': 0}}},
         {'$group': {'_id': '$address.area_id', 'count': {'$sum': 1}}},
         {'$sort': {'count': -1}},
     ]
-    results = await Listing.aggregate(pipeline).to_list()
+    results: list[dict[str, Any]] = await Listing.aggregate(pipeline).to_list()
     return {r['_id']: r['count'] for r in results}

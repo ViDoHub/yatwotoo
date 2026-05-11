@@ -1,5 +1,6 @@
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
+from typing import Any
 
 from app.models import Listing, PriceHistory
 
@@ -30,7 +31,7 @@ async def upsert_listings(listings: list[Listing]) -> tuple[list[Listing], list[
                 ).insert()
         else:
             # Update existing listing
-            existing.last_seen_at = datetime.utcnow()
+            existing.last_seen_at = datetime.now(UTC)
             existing.is_active = True
 
             # Check for price change
@@ -72,7 +73,7 @@ async def deduplicate_listing(listing: Listing) -> bool:
         return False
 
     # Look for existing listing with same address + rooms + sqm but different yad2_id
-    query = {
+    query: dict[str, Any] = {
         'yad2_id': {'$ne': listing.yad2_id},
         'address.city': listing.address.city,
         'address.street': listing.address.street,

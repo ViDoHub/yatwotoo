@@ -1,6 +1,6 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Annotated
+from typing import Annotated, Any
 
 from beanie import Document, Indexed
 from pydantic import BaseModel, Field
@@ -38,7 +38,7 @@ class Amenities(BaseModel):
     accessible: bool | None = None
     bars: bool | None = None
     boiler: bool | None = None
-    mamad: bool | None = None  # safe room
+    shelter: bool | None = None  # safe room (mamad)
 
 
 class Listing(Document):
@@ -57,13 +57,13 @@ class Listing(Document):
     url: str = ''
     entry_date: str = ''  # move-in date or delivery date for new projects
     project_name: str = ''  # for new projects
-    first_seen_at: datetime = Field(default_factory=datetime.utcnow)
-    last_seen_at: datetime = Field(default_factory=datetime.utcnow)
+    first_seen_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    last_seen_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     is_active: bool = True
 
     class Settings:
         name = 'listings'
-        indexes = [
+        indexes: list[str | list[tuple[str, str]]] = [
             'deal_type',
             'address.area_id',
             'address.top_area_id',
@@ -76,7 +76,7 @@ class Listing(Document):
 
 class SavedSearch(Document):
     name: str
-    filters: dict = Field(default_factory=dict)
+    filters: dict[str, Any] = Field(default_factory=dict)
     # Possible filter keys:
     # deal_type (rent/forsale/newprojects),
     # city, area_ids, top_area_ids, rooms_min, rooms_max,
@@ -84,7 +84,7 @@ class SavedSearch(Document):
     # parking, elevator, balcony, pets_allowed,
     # center_lat, center_lng, radius_km
     is_active: bool = True
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     class Settings:
         name = 'saved_searches'
@@ -93,7 +93,7 @@ class SavedSearch(Document):
 class PriceHistory(Document):
     listing_id: Annotated[str, Indexed()]
     price: int
-    observed_at: datetime = Field(default_factory=datetime.utcnow)
+    observed_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     class Settings:
         name = 'price_history'
@@ -103,7 +103,7 @@ class NotificationLog(Document):
     saved_search_id: str
     listing_id: str
     message_type: str  # "new_listing" or "price_drop"
-    sent_at: datetime = Field(default_factory=datetime.utcnow)
+    sent_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     class Settings:
         name = 'notification_logs'
@@ -137,7 +137,7 @@ class UserSettings(Document):
 
 class ScrapeJob(Document):
     status: str = 'running'  # running, completed, failed
-    started_at: datetime = Field(default_factory=datetime.utcnow)
+    started_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     completed_at: datetime | None = None
     current_region: int | None = None
     current_deal_type: str | None = None

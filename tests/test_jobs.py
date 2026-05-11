@@ -1,6 +1,6 @@
 """Tests for scheduler jobs (enrichment, cleanup, poll gating)."""
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -22,7 +22,7 @@ class TestPollListingsJobGating:
 
     async def test_skips_when_job_running(self):
         """Should skip poll if another job is currently running."""
-        await ScrapeJob(status='completed', completed_at=datetime.utcnow()).insert()
+        await ScrapeJob(status='completed', completed_at=datetime.now(UTC)).insert()
         await ScrapeJob(status='running').insert()
 
         # Should return early without fetching
@@ -32,7 +32,7 @@ class TestPollListingsJobGating:
 
     async def test_runs_when_completed_exists_and_none_running(self):
         """Should proceed with poll when conditions are met."""
-        await ScrapeJob(status='completed', completed_at=datetime.utcnow()).insert()
+        await ScrapeJob(status='completed', completed_at=datetime.now(UTC)).insert()
 
         with patch('app.scheduler.jobs.fetch_all_listings', new_callable=AsyncMock, return_value=[]) as mock_fetch:
             await poll_listings_job()
@@ -50,7 +50,7 @@ class TestCleanupStaleListings:
             yad2_id='fresh1',
             deal_type=DealType.RENT,
             is_active=True,
-            last_seen_at=datetime.utcnow(),
+            last_seen_at=datetime.now(UTC),
         ).insert()
 
         # Stale listing (not seen in 5 days)
@@ -58,7 +58,7 @@ class TestCleanupStaleListings:
             yad2_id='stale1',
             deal_type=DealType.RENT,
             is_active=True,
-            last_seen_at=datetime.utcnow() - timedelta(days=5),
+            last_seen_at=datetime.now(UTC) - timedelta(days=5),
         ).insert()
 
         await cleanup_stale_listings_job()
@@ -74,7 +74,7 @@ class TestCleanupStaleListings:
             yad2_id='already_inactive',
             deal_type=DealType.RENT,
             is_active=False,
-            last_seen_at=datetime.utcnow() - timedelta(days=10),
+            last_seen_at=datetime.now(UTC) - timedelta(days=10),
         ).insert()
 
         await cleanup_stale_listings_job()
@@ -92,7 +92,7 @@ class TestEnrichAmenitiesJob:
         await Listing(
             yad2_id='enriched1',
             deal_type=DealType.RENT,
-            amenities=Amenities(parking=True, elevator=False, mamad=True),
+            amenities=Amenities(parking=True, elevator=False, shelter=True),
             is_active=True,
         ).insert()
 
@@ -109,7 +109,7 @@ class TestEnrichAmenitiesJob:
             is_active=True,
         ).insert()
 
-        mock_amenities = Amenities(parking=True, elevator=True, mamad=False)
+        mock_amenities = Amenities(parking=True, elevator=True, shelter=False)
 
         with patch('app.scheduler.jobs.fetch_item_detail', new_callable=AsyncMock, return_value=mock_amenities):
             with patch('app.config.settings.request_delay_min', 0):
@@ -119,7 +119,7 @@ class TestEnrichAmenitiesJob:
         saved = await Listing.find_one(Listing.yad2_id == 'unenriched1')
         assert saved.amenities.parking is True
         assert saved.amenities.elevator is True
-        assert saved.amenities.mamad is False
+        assert saved.amenities.shelter is False
 
     async def test_handles_fetch_failure(self):
         """Should count failures but continue processing."""

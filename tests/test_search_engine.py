@@ -72,11 +72,11 @@ class TestSearchFiltersQueryBuilder:
         assert query['amenities.parking'] is True
 
     def test_amenity_filter_multiple(self):
-        sf = SearchFilters({'parking': '1', 'elevator': '1', 'mamad': '1'})
+        sf = SearchFilters({'parking': '1', 'elevator': '1', 'shelter': '1'})
         query = sf.build_query()
         assert query['amenities.parking'] is True
         assert query['amenities.elevator'] is True
-        assert query['amenities.mamad'] is True
+        assert query['amenities.shelter'] is True
 
     def test_amenity_filter_falsy_value_ignored(self):
         """Amenity filter with empty/falsy value should not be applied."""

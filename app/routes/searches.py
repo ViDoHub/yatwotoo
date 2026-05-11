@@ -24,7 +24,7 @@ async def create_search(request: Request) -> RedirectResponse:
         filters['deal_type'] = deal_type
 
     # Multi-location support: collect all non-empty cities and region IDs
-    cities = [c for c in form.getlist('cities[]') if c]
+    cities: list[str] = [c for c in form.getlist('cities[]') if c]
     if cities:
         filters['cities'] = cities
     if top_area_ids := form.getlist('top_area_ids[]'):
@@ -33,7 +33,7 @@ async def create_search(request: Request) -> RedirectResponse:
     # Map-drawn polygon (GeoJSON coordinates as JSON string)
     if geo_polygon := form.get('geo_polygon'):
         try:
-            coords = json.loads(str(geo_polygon))
+            coords: list[Any] = json.loads(str(geo_polygon))
             if coords and len(coords) >= 4:
                 filters['geo_polygon'] = coords
         except (json.JSONDecodeError, TypeError):
@@ -51,7 +51,7 @@ async def create_search(request: Request) -> RedirectResponse:
     if sqm_max := form.get('sqm_max'):
         filters['sqm_max'] = sqm_max
 
-    for amenity in ['parking', 'elevator', 'balcony', 'pets_allowed', 'furnished', 'mamad']:
+    for amenity in ['parking', 'elevator', 'balcony', 'pets_allowed', 'furnished', 'shelter']:
         if form.get(amenity):
             filters[amenity] = True
 
@@ -61,9 +61,9 @@ async def create_search(request: Request) -> RedirectResponse:
         filters['center_lng'] = form.get('center_lng')
         filters['radius_km'] = form.get('radius_km')
 
-    name = str(form.get('name', '')).strip() or 'חיפוש חדש'
+    name: str = str(form.get('name', '')).strip() or 'חיפוש חדש'
 
-    search = SavedSearch(name=name, filters=filters)
+    search: SavedSearch = SavedSearch(name=name, filters=filters)
     await search.insert()
 
     return RedirectResponse(url='/', status_code=303)
@@ -74,7 +74,7 @@ async def delete_search(search_id: str) -> RedirectResponse:
     """Delete (deactivate) a saved search."""
     from beanie import PydanticObjectId
 
-    search = await SavedSearch.get(PydanticObjectId(search_id))
+    search: SavedSearch | None = await SavedSearch.get(PydanticObjectId(search_id))
     if search:
         search.is_active = False
         await search.save()
@@ -84,7 +84,7 @@ async def delete_search(search_id: str) -> RedirectResponse:
 @router.get('/settings', response_class=HTMLResponse)
 async def settings_page(request: Request) -> HTMLResponse:
     """Settings page for WhatsApp configuration."""
-    user_settings = await UserSettings.find_one()
+    user_settings: UserSettings | None = await UserSettings.find_one()
     return templates.TemplateResponse(
         request,
         'settings.html',
@@ -102,8 +102,8 @@ async def save_whatsapp_settings(
     whatsapp_enabled: str = Form(''),
 ) -> RedirectResponse:
     """Save WhatsApp configuration."""
-    enabled = whatsapp_enabled == '1'
-    user_settings = await UserSettings.find_one()
+    enabled: bool = whatsapp_enabled == '1'
+    user_settings: UserSettings | None = await UserSettings.find_one()
     if user_settings:
         user_settings.whatsapp_enabled = enabled
         user_settings.whatsapp_phone = phone.strip()
@@ -122,11 +122,11 @@ async def save_whatsapp_settings(
 @router.post('/settings/whatsapp/test', response_class=HTMLResponse)
 async def test_whatsapp(request: Request) -> HTMLResponse:
     """Send a test WhatsApp message."""
-    user_settings = await UserSettings.find_one()
+    user_settings: UserSettings | None = await UserSettings.find_one()
     if not user_settings or not user_settings.whatsapp_phone:
         return HTMLResponse('<span class="text-red-500">WhatsApp not configured</span>')
 
-    success = await send_whatsapp(
+    success: bool = await send_whatsapp(
         'Yad2 Search - Test message works!',
         phone=user_settings.whatsapp_phone,
         apikey=user_settings.whatsapp_apikey,
@@ -144,8 +144,8 @@ async def save_general_settings(
     notifications_enabled: str = Form(''),
 ) -> RedirectResponse:
     """Save general settings (poll interval, global toggle)."""
-    enabled = notifications_enabled == '1'
-    user_settings = await UserSettings.find_one()
+    enabled: bool = notifications_enabled == '1'
+    user_settings: UserSettings | None = await UserSettings.find_one()
     if user_settings:
         user_settings.poll_interval_minutes = poll_interval
         user_settings.notifications_enabled = enabled
@@ -166,8 +166,8 @@ async def save_telegram_settings(
     telegram_chat_id: str = Form(''),
 ) -> RedirectResponse:
     """Save Telegram configuration."""
-    enabled = telegram_enabled == '1'
-    user_settings = await UserSettings.find_one()
+    enabled: bool = telegram_enabled == '1'
+    user_settings: UserSettings | None = await UserSettings.find_one()
     if user_settings:
         user_settings.telegram_enabled = enabled
         user_settings.telegram_bot_token = telegram_bot_token.strip()
@@ -185,11 +185,11 @@ async def save_telegram_settings(
 @router.post('/settings/telegram/test', response_class=HTMLResponse)
 async def test_telegram(request: Request) -> HTMLResponse:
     """Send a test Telegram message."""
-    user_settings = await UserSettings.find_one()
+    user_settings: UserSettings | None = await UserSettings.find_one()
     if not user_settings or not user_settings.telegram_bot_token:
         return HTMLResponse('<span class="text-red-500">Telegram not configured</span>')
 
-    success = await send_telegram(
+    success: bool = await send_telegram(
         'Yad2 Search - Test message works! ✅',
         token=user_settings.telegram_bot_token,
         chat_id=user_settings.telegram_chat_id,
@@ -211,8 +211,8 @@ async def save_email_settings(
     email_to: str = Form(''),
 ) -> RedirectResponse:
     """Save Email SMTP configuration."""
-    enabled = email_enabled == '1'
-    user_settings = await UserSettings.find_one()
+    enabled: bool = email_enabled == '1'
+    user_settings: UserSettings | None = await UserSettings.find_one()
     if user_settings:
         user_settings.email_enabled = enabled
         user_settings.email_smtp_host = email_smtp_host.strip()
@@ -236,11 +236,11 @@ async def save_email_settings(
 @router.post('/settings/email/test', response_class=HTMLResponse)
 async def test_email(request: Request) -> HTMLResponse:
     """Send a test email."""
-    user_settings = await UserSettings.find_one()
+    user_settings: UserSettings | None = await UserSettings.find_one()
     if not user_settings or not user_settings.email_smtp_host:
         return HTMLResponse('<span class="text-red-500">Email not configured</span>')
 
-    success = await send_email(
+    success: bool = await send_email(
         'Yad2 Search - Test Email',
         'This is a test email from your Yad2 apartment search monitor. If you see this, email notifications are working!',
     )

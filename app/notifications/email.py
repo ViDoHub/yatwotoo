@@ -12,22 +12,22 @@ async def send_email(subject: str, body: str) -> bool:
 
     Returns True on success.
     """
-    user_settings = await UserSettings.find_one()
+    user_settings: UserSettings | None = await UserSettings.find_one()
     if not user_settings:
         logger.warning('No user settings found')
         return False
 
-    host = user_settings.email_smtp_host
-    port = user_settings.email_smtp_port
-    user = user_settings.email_smtp_user
-    password = user_settings.email_smtp_password
-    to_addr = user_settings.email_to
+    host: str = user_settings.email_smtp_host
+    port: int = user_settings.email_smtp_port
+    user: str = user_settings.email_smtp_user
+    password: str = user_settings.email_smtp_password
+    to_addr: str = user_settings.email_to
 
     if not host or not to_addr:
         logger.warning('Email not configured (missing host or recipient)')
         return False
 
-    msg = EmailMessage()
+    msg: EmailMessage = EmailMessage()
     msg['Subject'] = subject
     msg['From'] = user or f'yad2-alerts@{host}'
     msg['To'] = to_addr

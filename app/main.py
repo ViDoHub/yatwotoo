@@ -1,7 +1,7 @@
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import UTC, datetime
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from beanie import init_beanie
@@ -20,9 +20,9 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
 )
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
-scheduler = AsyncIOScheduler()
+scheduler: AsyncIOScheduler = AsyncIOScheduler()
 
 
 async def _auto_restore_from_backup() -> None:
@@ -30,19 +30,19 @@ async def _auto_restore_from_backup() -> None:
     import asyncio
     from pathlib import Path
 
-    backup_dir = Path(settings.backup_dir)
+    backup_dir: Path = Path(settings.backup_dir)
     if not backup_dir.exists():
         return
 
-    archives = sorted(backup_dir.glob(f'{settings.mongodb_db}_*.gz'))
+    archives: list[Path] = sorted(backup_dir.glob(f'{settings.mongodb_db}_*.gz'))
     if not archives:
         logger.info('No backup archives found for auto-restore')
         return
 
-    latest = archives[-1]
+    latest: Path = archives[-1]
     logger.info(f'DB empty - restoring from {latest}')
 
-    cmd = [
+    cmd: list[str] = [
         'mongorestore',
         f'--uri={settings.mongodb_url}',
         f'--archive={latest}',
@@ -50,7 +50,9 @@ async def _auto_restore_from_backup() -> None:
         '--drop',
     ]
 
-    proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+    proc: asyncio.subprocess.Process = await asyncio.create_subprocess_exec(
+        *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+    )
     _, stderr = await proc.communicate()
 
     if proc.returncode != 0:
@@ -62,7 +64,7 @@ async def _auto_restore_from_backup() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Startup: connect to MongoDB and init Beanie
-    client = AsyncIOMotorClient(settings.mongodb_url)
+    client: AsyncIOMotorClient = AsyncIOMotorClient(settings.mongodb_url)
     await init_beanie(
         database=client[settings.mongodb_db],
         document_models=[Listing, SavedSearch, PriceHistory, NotificationLog, UserSettings, ScrapeJob],
@@ -70,16 +72,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info(f'Connected to MongoDB at {settings.mongodb_url}/{settings.mongodb_db}')
 
     # Auto-restore from backup if DB is empty
-    listing_count = await Listing.count()
+    listing_count: int = await Listing.count()
     if listing_count == 0:
         await _auto_restore_from_backup()
 
     # Mark any orphaned "running" jobs as failed (from previous server crash/restart)
-    orphaned = await ScrapeJob.find(ScrapeJob.status == 'running').to_list()
+    orphaned: list[ScrapeJob] = await ScrapeJob.find(ScrapeJob.status == 'running').to_list()
     for job in orphaned:
         job.status = 'failed'
         job.error = 'Server restarted - background task lost'
-        job.completed_at = datetime.utcnow()
+        job.completed_at = datetime.now(UTC)
         await job.save()
         logger.warning(f'Marked orphaned scrape job {job.id} as failed')
 
@@ -90,7 +92,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         minutes=settings.poll_interval_minutes,
         id='poll_listings',
         replace_existing=True,
-        next_run_time=datetime.now(),
+        next_run_time=datetime.now(UTC),
     )
     scheduler.add_job(
         cleanup_stale_listings_job,
@@ -112,7 +114,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         minutes=30,
         id='enrich_amenities',
         replace_existing=True,
-        next_run_time=datetime.now(),
+        next_run_time=datetime.now(UTC),
     )
     scheduler.start()
     logger.info(f'Scheduler started (poll every {settings.poll_interval_minutes} min)')

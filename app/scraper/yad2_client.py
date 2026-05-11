@@ -2,6 +2,7 @@ import asyncio
 import collections.abc
 import logging
 import random
+from typing import Any
 
 import httpx
 from fake_useragent import UserAgent
@@ -48,8 +49,8 @@ DEFAULT_HEADERS = {
 }
 
 
-def _get_headers() -> dict:
-    headers = DEFAULT_HEADERS.copy()
+def _get_headers() -> dict[str, str]:
+    headers: dict[str, str] = DEFAULT_HEADERS.copy()
     headers['User-Agent'] = ua.random
     return headers
 
@@ -75,21 +76,21 @@ async def _delay() -> None:
 async def fetch_region(
     region_id: int,
     deal_type: DealType = DealType.RENT,
-    params: dict | None = None,
+    params: dict[str, Any] | None = None,
     client: httpx.AsyncClient | None = None,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Fetch markers for a single region from the Yad2 map feed API.
 
     Returns list of raw marker dicts or empty list on failure.
     """
-    path = DEAL_TYPE_PATHS[deal_type]
-    url = f'{BASE_URL}/{path}/map'
+    path: str = DEAL_TYPE_PATHS[deal_type]
+    url: str = f'{BASE_URL}/{path}/map'
 
-    query_params = {'region': region_id}
+    query_params: dict[str, Any] = {'region': region_id}
     if params:
         query_params.update(params)
 
-    should_close = client is None
+    should_close: bool = client is None
     if client is None:
         client = httpx.AsyncClient(timeout=30.0)
 
@@ -100,7 +101,7 @@ async def fetch_region(
             logger.warning(f'Yad2 returned status {response.status_code} for region {region_id}')
             return []
 
-        data = response.json()
+        data: dict[str, Any] = response.json()
         return data.get('data', {}).get('markers', [])
 
     except (httpx.HTTPError, ValueError) as e:
@@ -111,20 +112,20 @@ async def fetch_region(
             await client.aclose()
 
 
-def parse_marker(marker: dict, deal_type: DealType = DealType.RENT) -> Listing | None:
+def parse_marker(marker: dict[str, Any], deal_type: DealType = DealType.RENT) -> Listing | None:
     """Parse a single map marker into a Listing model."""
-    token = marker.get('token', '')
+    token: str = marker.get('token', '')
     if not token:
         return None
 
-    addr = marker.get('address', {})
-    house = addr.get('house', {})
-    coords = addr.get('coords', {})
-    details = marker.get('additionalDetails', {})
-    meta = marker.get('metaData', {})
+    addr: dict[str, Any] = marker.get('address', {})
+    house: dict[str, Any] = addr.get('house', {})
+    coords: dict[str, Any] = addr.get('coords', {})
+    details: dict[str, Any] = marker.get('additionalDetails', {})
+    meta: dict[str, Any] = marker.get('metaData', {})
 
     # Build address
-    address = Address(
+    address: Address = Address(
         city=addr.get('city', {}).get('text', ''),
         neighborhood=addr.get('neighborhood', {}).get('text', ''),
         street=addr.get('street', {}).get('text', ''),
@@ -136,22 +137,22 @@ def parse_marker(marker: dict, deal_type: DealType = DealType.RENT) -> Listing |
     )
 
     # Rooms, floor, sqm
-    rooms = _parse_float(details.get('roomsCount'))
-    floor = house.get('floor')
+    rooms: float | None = _parse_float(details.get('roomsCount'))
+    floor: int | None = house.get('floor')
     if floor is not None:
         floor = _parse_int(floor)
-    sqm = _parse_float(details.get('squareMeter'))
+    sqm: float | None = _parse_float(details.get('squareMeter'))
 
     # Price
-    price = _parse_int(marker.get('price'))
+    price: int | None = _parse_int(marker.get('price'))
 
     # Price per sqm
-    price_per_sqm = None
+    price_per_sqm: float | None = None
     if price and sqm and sqm > 0:
         price_per_sqm = round(price / sqm, 1)
 
     # Geo location
-    location = None
+    location: GeoLocation | None = None
     lat = coords.get('lat')
     lng = coords.get('lon')
     if lat and lng:
@@ -161,15 +162,15 @@ def parse_marker(marker: dict, deal_type: DealType = DealType.RENT) -> Listing |
             pass
 
     # Images
-    images = meta.get('images', [])
+    images: list[str] = meta.get('images', [])
     if not images and meta.get('coverImage'):
         images = [meta['coverImage']]
 
     # Amenities (not available in map feed, will be empty)
-    amenities = Amenities()
+    amenities: Amenities = Amenities()
 
     # URL
-    url = f'https://www.yad2.co.il/item/{token}'
+    url: str = f'https://www.yad2.co.il/item/{token}'
 
     return Listing(
         yad2_id=token,
@@ -190,7 +191,7 @@ def parse_marker(marker: dict, deal_type: DealType = DealType.RENT) -> Listing |
     )
 
 
-def _build_api_params(filters: dict) -> dict:
+def _build_api_params(filters: dict[str, Any]) -> dict[str, str]:
     """Convert search filters to Yad2 map feed API query params."""
     params: dict[str, str] = {}
 
@@ -229,26 +230,26 @@ def _parse_int(value: object) -> int | None:
 
 async def _fetch_with_params(
     deal_type: DealType,
-    query_params: dict,
+    query_params: dict[str, Any],
     client: httpx.AsyncClient,
-) -> tuple[list[dict], list[dict]]:
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Fetch markers+clusters for given query params.
 
     Returns (markers, clusters). Rate-limited via global semaphore.
     """
-    path = DEAL_TYPE_PATHS[deal_type]
-    url = f'{BASE_URL}/{path}/map'
+    path: str = DEAL_TYPE_PATHS[deal_type]
+    url: str = f'{BASE_URL}/{path}/map'
 
     async with _get_semaphore():
         await _delay()
         try:
-            response = await client.get(url, params=query_params, headers=_get_headers())
+            response: httpx.Response = await client.get(url, params=query_params, headers=_get_headers())
             if response.status_code != 200:
                 logger.warning(f'Yad2 returned {response.status_code} for params {query_params}')
                 return [], []
-            data = response.json()
-            markers = data.get('data', {}).get('markers', [])
-            clusters = data.get('data', {}).get('clusters', [])
+            data: dict[str, Any] = response.json()
+            markers: list[dict[str, Any]] = data.get('data', {}).get('markers', [])
+            clusters: list[dict[str, Any]] = data.get('data', {}).get('clusters', [])
             return markers, clusters
         except (httpx.HTTPError, ValueError) as e:
             logger.error(f'Error fetching {query_params}: {e}')
@@ -272,11 +273,11 @@ _PRICE_RANGES = [
 async def _deep_fetch_region(
     region_id: int,
     deal_type: DealType,
-    api_params: dict,
+    api_params: dict[str, Any],
     client: httpx.AsyncClient,
     on_chunk: collections.abc.Callable | None = None,
     chunk_size: int = 200,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Hierarchically fetch all markers for a region by drilling into clusters.
 
     Strategy: region -> area -> city -> neighborhood -> price-range subdivision.
@@ -286,10 +287,10 @@ async def _deep_fetch_region(
     If on_chunk is provided, it's called with each batch of new markers
     (approx chunk_size) for incremental DB persistence.
     """
-    all_markers: list[dict] = []
+    all_markers: list[dict[str, Any]] = []
     seen_tokens: set[str] = set()
-    _pending: list[dict] = []
-    _lock = asyncio.Lock()
+    _pending: list[dict[str, Any]] = []
+    _lock: asyncio.Lock = asyncio.Lock()
 
     async def _flush() -> None:
         """Flush pending markers via callback."""
@@ -297,14 +298,14 @@ async def _deep_fetch_region(
             await on_chunk(list(_pending))
         _pending.clear()
 
-    async def _collect_flush(markers: list[dict]) -> None:
+    async def _collect_flush(markers: list[dict[str, Any]]) -> None:
         """Collect markers and flush if pending exceeds chunk_size (thread-safe)."""
         async with _lock:
             _collect(markers)
             if len(_pending) >= chunk_size:
                 await _flush()
 
-    def _collect(markers: list[dict]) -> None:
+    def _collect(markers: list[dict[str, Any]]) -> None:
         for m in markers:
             token = m.get('token', '')
             if token and token not in seen_tokens:
@@ -312,7 +313,7 @@ async def _deep_fetch_region(
                 all_markers.append(m)
                 _pending.append(m)
 
-    async def _drill_hood(params: dict, city_id: int | str, hood_cluster: dict) -> None:
+    async def _drill_hood(params: dict[str, Any], city_id: int | str, hood_cluster: dict[str, Any]) -> None:
         """Drill into a single neighborhood, splitting by price if needed."""
         hood_id = hood_cluster.get('hoodId')
         hood_docs = hood_cluster.get('docCount', 0)
@@ -339,7 +340,7 @@ async def _deep_fetch_region(
 
         await asyncio.gather(*[_fetch_price_range(pmin, pmax) for pmin, pmax in _PRICE_RANGES])
 
-    async def _drill_city(params: dict, city_cluster: dict) -> None:
+    async def _drill_city(params: dict[str, Any], city_cluster: dict[str, Any]) -> None:
         """Drill into a single city, spawning concurrent hood fetches."""
         city_id = city_cluster.get('cityId')
         city_docs = city_cluster.get('docCount', 0)
@@ -363,7 +364,7 @@ async def _deep_fetch_region(
 
         await asyncio.gather(*[_drill_hood(params, city_id, hc) for hc in hood_clusters])
 
-    async def _drill_area(params: dict, area_cluster: dict) -> None:
+    async def _drill_area(params: dict[str, Any], area_cluster: dict[str, Any]) -> None:
         """Drill into a single area, spawning concurrent city fetches."""
         area_id = area_cluster.get('areaId')
         doc_count = area_cluster.get('docCount', 0)
@@ -388,7 +389,9 @@ async def _deep_fetch_region(
 
         await asyncio.gather(*[_drill_city(params, cc) for cc in city_clusters])
 
-    params = {'region': region_id, **api_params}
+    params: dict[str, Any] = {'region': region_id, **api_params}
+    markers: list[dict[str, Any]]
+    clusters: list[dict[str, Any]]
     markers, clusters = await _fetch_with_params(deal_type, params, client)
 
     # If no clusters, just collect what we got
@@ -414,7 +417,8 @@ async def _deep_fetch_region(
 
 
 async def fetch_all_listings(
-    params: dict,
+    params: dict[str, Any],
+    *,
     max_pages: int = 5,
     deal_type: DealType = DealType.RENT,
     region_ids: list[int] | None = None,
@@ -435,7 +439,7 @@ async def fetch_all_listings(
     if region_ids is None:
         region_ids = list(REGIONS.keys())
 
-    api_params = _build_api_params(params)
+    api_params: dict[str, str] = _build_api_params(params)
     all_listings: list[Listing] = []
 
     async with httpx.AsyncClient(timeout=30.0) as client:
@@ -443,9 +447,11 @@ async def fetch_all_listings(
             logger.info(f'Fetching {deal_type.value} region {region_id} ({REGIONS.get(region_id, "?")}) deep={deep}')
 
             if deep:
-                markers = await _deep_fetch_region(region_id, deal_type, api_params, client)
+                markers: list[dict[str, Any]] = await _deep_fetch_region(region_id, deal_type, api_params, client)
             else:
-                markers = await fetch_region(region_id, deal_type=deal_type, params=api_params, client=client)
+                markers: list[dict[str, Any]] = await fetch_region(
+                    region_id, deal_type=deal_type, params=api_params, client=client
+                )
                 await _delay()
 
             if not markers:
@@ -453,7 +459,7 @@ async def fetch_all_listings(
                 continue
 
             for marker in markers:
-                listing = parse_marker(marker, deal_type=deal_type)
+                listing: Listing | None = parse_marker(marker, deal_type=deal_type)
                 if listing:
                     all_listings.append(listing)
 
@@ -471,7 +477,7 @@ DETAIL_URL = 'https://gw.yad2.co.il/feed-search-legacy/item'
 _AMENITY_KEY_MAP = {
     'air_conditioner': 'air_conditioning',
     'elevator': 'elevator',
-    'shelter': 'mamad',
+    'shelter': 'shelter',
     'pets': 'pets_allowed',
     'furniture': 'furnished',
     'bars': 'bars',
@@ -490,20 +496,20 @@ async def fetch_item_detail(
     Returns an Amenities object or None on failure.
     Uses browser headers and exponential backoff on rate-limit responses.
     """
-    should_close = client is None
+    should_close: bool = client is None
     if client is None:
         client = httpx.AsyncClient(timeout=15.0)
 
     try:
         for attempt in range(_retries):
-            resp = await client.get(DETAIL_URL, params={'token': token}, headers=_get_headers())
+            resp: httpx.Response = await client.get(DETAIL_URL, params={'token': token}, headers=_get_headers())
 
             if resp.status_code == 200:
                 break
 
             # Rate limited or blocked -- exponential backoff
             if resp.status_code in (429, 403):
-                backoff = 30 * (2**attempt)  # 30s, 60s, 120s
+                backoff: int = 30 * (2**attempt)  # 30s, 60s, 120s
                 logger.warning(f'Rate limited ({resp.status_code}) on {token}, backing off {backoff}s')
                 await asyncio.sleep(backoff)
                 continue
@@ -514,13 +520,13 @@ async def fetch_item_detail(
             # Exhausted retries
             return None
 
-        data = resp.json().get('data', {})
+        data: dict[str, Any] = resp.json().get('data', {})
 
         # Parse boolean amenities from additional_info_items_v2
         amenity_values: dict[str, bool] = {}
         for item in data.get('additional_info_items_v2', []):
-            key = item.get('key', '')
-            our_key = _AMENITY_KEY_MAP.get(key)
+            key: str = item.get('key', '')
+            our_key: str | None = _AMENITY_KEY_MAP.get(key)
             if our_key:
                 amenity_values[our_key] = bool(item.get('value'))
 

@@ -52,6 +52,7 @@ select = [
     "E",     # pycodestyle errors
     "ERA",   # commented-out code
     "F",     # pyflakes
+    "FBT",   # flake8-boolean-trap
     "FIX",   # flake8-fixme
     "FLY",   # str.join -> f-string
     "I",     # isort
@@ -106,6 +107,7 @@ unfixable = []
 "tests/**" = [
     "ANN",   # no type annotations required in tests
     "ARG",   # unused arguments common in fixtures
+    "DTZ001", # naive datetime() ok in test fixtures (MongoDB strips tzinfo)
     "E741",  # ambiguous variable names (l in comprehensions)
     "S101",  # assert is fine in tests
     "SIM117", # nested with statements (test mocking patterns)

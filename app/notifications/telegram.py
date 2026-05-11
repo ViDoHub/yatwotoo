@@ -7,9 +7,9 @@ from app.models import UserSettings
 logger = logging.getLogger(__name__)
 
 
-async def get_telegram_config() -> dict:
+async def get_telegram_config() -> dict[str, str]:
     """Get Telegram config from DB."""
-    user_settings = await UserSettings.find_one()
+    user_settings: UserSettings | None = await UserSettings.find_one()
     if user_settings and user_settings.telegram_bot_token and user_settings.telegram_chat_id:
         return {
             'token': user_settings.telegram_bot_token,
@@ -25,15 +25,15 @@ async def send_telegram(message: str, token: str = '', chat_id: str = '') -> boo
     Returns True on success.
     """
     if not token or not chat_id:
-        config = await get_telegram_config()
+        config: dict[str, str] = await get_telegram_config()
         if not config:
             logger.warning('Telegram not configured (no token/chat_id)')
             return False
         token = config['token']
         chat_id = config['chat_id']
 
-    url = f'https://api.telegram.org/bot{token}/sendMessage'
-    payload = {
+    url: str = f'https://api.telegram.org/bot{token}/sendMessage'
+    payload: dict[str, str] = {
         'chat_id': chat_id,
         'text': message,
         'parse_mode': 'Markdown',

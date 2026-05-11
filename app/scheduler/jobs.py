@@ -1,16 +1,19 @@
+import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from typing import Any
 
-from app.models import DealType, Listing, SavedSearch, ScrapeJob
+from app.models import Amenities, DealType, Listing, SavedSearch, ScrapeJob
 from app.notifications.dispatcher import notify_new_listing, notify_price_drop
 from app.scraper.sync import upsert_listings
 from app.scraper.yad2_client import REGIONS, fetch_all_listings, fetch_item_detail
 from app.search.engine import match_saved_search
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _build_scrape_params(filters: dict) -> tuple[dict, DealType, list[int] | None]:
+def _build_scrape_params(filters: dict[str, Any]) -> tuple[dict[str, str], DealType, list[int] | None]:
     """Convert saved search filters to Yad2 API params.
 
     Returns (params_dict, deal_type, region_ids).
@@ -53,18 +56,18 @@ async def poll_listings_job() -> None:
     logger.info('Starting listing poll job')
 
     # Check if initial full sync has ever completed
-    initial_sync_done = await ScrapeJob.find_one(ScrapeJob.status == 'completed')
+    initial_sync_done: ScrapeJob | None = await ScrapeJob.find_one(ScrapeJob.status == 'completed')
     if not initial_sync_done:
         logger.info('No completed initial sync yet - skipping periodic poll (use /api/scrape)')
         return
 
     # Check if a manual scrape is currently running - avoid fighting
-    running_job = await ScrapeJob.find_one(ScrapeJob.status == 'running')
+    running_job: ScrapeJob | None = await ScrapeJob.find_one(ScrapeJob.status == 'running')
     if running_job:
         logger.info('A scrape job is already running - skipping periodic poll')
         return
 
-    saved_searches = await SavedSearch.find(SavedSearch.is_active == True).to_list()  # noqa: E712
+    saved_searches: list[SavedSearch] = await SavedSearch.find(SavedSearch.is_active == True).to_list()  # noqa: E712
 
     # Incremental sync: shallow fetch per region for each deal type
     # Only deep-drill regions that return exactly 200 (overflow = more data)
@@ -73,7 +76,9 @@ async def poll_listings_job() -> None:
 
     for deal_type in [DealType.RENT, DealType.FORSALE]:
         for region_id in REGIONS:
-            listings = await fetch_all_listings({}, deal_type=deal_type, region_ids=[region_id], deep=False)
+            listings: list[Listing] = await fetch_all_listings(
+                {}, deal_type=deal_type, region_ids=[region_id], deep=False
+            )
             if not listings:
                 continue
 
@@ -101,14 +106,14 @@ async def poll_listings_job() -> None:
             if await match_saved_search(search.filters, listing):
                 from app.models import PriceHistory
 
-                history = (
+                history: list[PriceHistory] = (
                     await PriceHistory.find(PriceHistory.listing_id == listing.yad2_id)
                     .sort([('observed_at', -1)])
                     .limit(2)
                     .to_list()
                 )
                 if len(history) >= 2:
-                    old_price = history[1].price
+                    old_price: int = history[1].price
                     await notify_price_drop(listing, old_price, str(search.id))
 
     logger.info('Poll job complete')
@@ -116,7 +121,7 @@ async def poll_listings_job() -> None:
 
 async def cleanup_stale_listings_job() -> None:
     """Mark listings as inactive if not seen for 3 days."""
-    cutoff = datetime.utcnow() - timedelta(days=3)
+    cutoff: datetime = datetime.now(UTC) - timedelta(days=3)
 
     result = await Listing.find(
         Listing.last_seen_at < cutoff,
@@ -128,19 +133,17 @@ async def cleanup_stale_listings_job() -> None:
 
 async def backup_db_job() -> None:
     """Dump MongoDB to a compressed archive. Retain backups for configured days."""
-    import asyncio
     import os
-    from pathlib import Path
 
     from app.config import settings
 
-    backup_dir = Path(settings.backup_dir)
+    backup_dir: Path = Path(settings.backup_dir)
     backup_dir.mkdir(parents=True, exist_ok=True)
 
-    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-    archive_path = backup_dir / f'{settings.mongodb_db}_{timestamp}.gz'
+    timestamp: str = datetime.now(UTC).strftime('%Y%m%d_%H%M%S')
+    archive_path: Path = backup_dir / f'{settings.mongodb_db}_{timestamp}.gz'
 
-    cmd = [
+    cmd: list[str] = [
         'mongodump',
         f'--uri={settings.mongodb_url}',
         f'--db={settings.mongodb_db}',
@@ -148,7 +151,9 @@ async def backup_db_job() -> None:
         '--gzip',
     ]
 
-    proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+    proc: asyncio.subprocess.Process = await asyncio.create_subprocess_exec(
+        *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+    )
     _, stderr = await proc.communicate()
 
     if proc.returncode != 0:
@@ -158,9 +163,9 @@ async def backup_db_job() -> None:
     logger.info(f'DB backup saved to {archive_path}')
 
     # Remove backups older than retention period
-    cutoff = datetime.utcnow() - timedelta(days=settings.backup_retention_days)
+    cutoff: datetime = datetime.now(UTC) - timedelta(days=settings.backup_retention_days)
     for f in backup_dir.glob(f'{settings.mongodb_db}_*.gz'):
-        if datetime.fromtimestamp(os.path.getmtime(f)) < cutoff:
+        if datetime.fromtimestamp(os.path.getmtime(f), tz=UTC) < cutoff:
             f.unlink()
             logger.info(f'Removed old backup: {f}')
 
@@ -180,10 +185,10 @@ async def enrich_amenities_job(batch_size: int = 1000) -> None:
         'is_active': True,
         'amenities.parking': None,
         'amenities.elevator': None,
-        'amenities.mamad': None,
+        'amenities.shelter': None,
     }
 
-    listings = await Listing.find(query).limit(batch_size).to_list()
+    listings: list[Listing] = await Listing.find(query).limit(batch_size).to_list()
 
     if not listings:
         logger.info('Amenity enrichment: no un-enriched listings found')
@@ -191,12 +196,12 @@ async def enrich_amenities_job(batch_size: int = 1000) -> None:
 
     logger.info(f'Amenity enrichment: processing {len(listings)} listings')
 
-    enriched = 0
-    failed = 0
+    enriched: int = 0
+    failed: int = 0
 
     async with httpx.AsyncClient(timeout=15.0) as client:
         for listing in listings:
-            amenities = await fetch_item_detail(listing.yad2_id, client=client)
+            amenities: Amenities | None = await fetch_item_detail(listing.yad2_id, client=client)
             if amenities:
                 listing.amenities = amenities
                 await listing.save()
@@ -205,7 +210,7 @@ async def enrich_amenities_job(batch_size: int = 1000) -> None:
                 failed += 1
 
             # Rate limit: respect Yad2 servers
-            delay = (
+            delay: float = (
                 settings.request_delay_min
                 + (settings.request_delay_max - settings.request_delay_min) * __import__('random').random()
             )
