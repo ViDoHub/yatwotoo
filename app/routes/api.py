@@ -1,23 +1,12 @@
-import asyncio
 import logging
-from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-if TYPE_CHECKING:
-    from collections.abc import Coroutine
-
-import httpx
-from fastapi import APIRouter, BackgroundTasks, Query, Request
+from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse
 
 from app.consts import GEO_TYPE_POLYGON, FilterParam, JobStatus
 from app.models import AmenityFilter, DealType, Listing, SavedSearch, ScrapeJob
-from app.scraper.sync import upsert_listings
-from app.scraper.yad2_client import (
-    REGIONS,
-    _deep_fetch_region,
-    parse_marker,
-)
+from app.scraper.yad2_client import REGIONS
 
 logger: logging.Logger = logging.getLogger(name=__name__)
 
@@ -151,103 +140,28 @@ async def get_markers(
     return JSONResponse(content={'markers': markers, 'total': len(markers)})
 
 
-async def _run_deep_scrape(job_id: str) -> None:
-    """Background task: deep scrape all regions and deal types, updating job progress.
-
-    Runs multiple region+deal_type combinations concurrently (bounded by
-    the global API semaphore in yad2_client).
-    """
-    job: ScrapeJob | None = await ScrapeJob.get(document_id=job_id)
-    if not job:
-        return
-
-    # Lock protects job counter updates from concurrent on_chunk callbacks
-    job_lock: asyncio.Lock = asyncio.Lock()
-
-    try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-
-            async def _scrape_step(deal_type: DealType, region_id: int) -> None:
-                step_key: str = f'{deal_type.value}:{region_id}'
-
-                # Skip already-completed steps (resume support)
-                if step_key in job.regions_completed:
-                    return
-
-                logger.info(msg=f'[Job {job_id}] Deep scraping {deal_type.value} region {region_id}')
-
-                async def on_chunk(chunk_markers: list[dict[str, Any]], _deal_type: DealType = deal_type) -> None:
-                    """Called every ~200 markers - upsert to DB and update job."""
-                    listings: list[Listing] = [
-                        parsed
-                        for m in chunk_markers
-                        if (parsed := parse_marker(marker=m, deal_type=_deal_type)) is not None
-                    ]
-                    if listings:
-                        new_listings, price_drops = await upsert_listings(listings=listings)
-                        async with job_lock:
-                            job.total_fetched += len(listings)
-                            job.total_new += len(new_listings)
-                            job.total_price_drops += len(price_drops)
-                            await job.save()
-
-                await _deep_fetch_region(
-                    region_id=region_id,
-                    deal_type=deal_type,
-                    api_params={},
-                    client=client,
-                    on_chunk=on_chunk,
-                )
-
-                async with job_lock:
-                    job.regions_completed.append(step_key)
-                    await job.save()
-
-            # Build all region+deal_type tasks
-            tasks: list[Coroutine[Any, Any, None]] = [
-                _scrape_step(deal_type=deal_type, region_id=region_id)
-                for deal_type in [DealType.RENT, DealType.FORSALE]
-                for region_id in REGIONS
-            ]
-            await asyncio.gather(*tasks)
-
-        job.status = JobStatus.COMPLETED
-        job.completed_at = datetime.now(tz=UTC)
-        job.current_region = None
-        job.current_deal_type = None
-        await job.save()
-        logger.info(msg=f'[Job {job_id}] Scrape completed: {job.total_fetched} fetched, {job.total_new} new')
-
-    except Exception as e:
-        logger.error(msg=f'[Job {job_id}] Scrape failed: {e}')
-        job.status = JobStatus.FAILED
-        job.error = str(object=e)
-        job.completed_at = datetime.now(tz=UTC)
-        await job.save()
-
-
 @router.post(path='/scrape')
 async def trigger_scrape(
-    background_tasks: BackgroundTasks,
     *,
     resume: bool = Query(default=False, description="Resume from last failed job's progress"),
 ) -> JSONResponse:
-    """Kick off a deep scrape in the background. Returns immediately with job ID."""
-    # Check if a scrape is already running
-    running: ScrapeJob | None = await ScrapeJob.find_one(ScrapeJob.status == JobStatus.RUNNING)
-    if running:
+    """Create a pending scrape job. The worker process picks it up and executes it."""
+    # Check if a scrape is already running or pending
+    active: ScrapeJob | None = await ScrapeJob.find_one(
+        {'status': {'$in': [JobStatus.RUNNING, JobStatus.PENDING]}},
+    )
+    if active:
         return JSONResponse(
             content={
                 'status': JobStatus.ALREADY_RUNNING,
-                'job_id': str(object=running.id),
-                'message': 'A scrape is already in progress.',
+                'job_id': str(object=active.id),
+                'message': 'A scrape is already in progress or pending.',
             },
         )
 
     job: ScrapeJob = ScrapeJob()
 
     if resume:
-        # Find most recent failed/cancelled job with progress to resume from
         prev: ScrapeJob | None = await ScrapeJob.find_one(
             {'status': {'$in': [JobStatus.FAILED, JobStatus.CANCELLED]}, 'regions_completed': {'$ne': []}},
             sort=[('started_at', -1)],
@@ -257,20 +171,17 @@ async def trigger_scrape(
             job.total_fetched = prev.total_fetched
             job.total_new = prev.total_new
             job.total_price_drops = prev.total_price_drops
-            # Mark the old job as "resumed" so it won't be picked up again
             prev.status = JobStatus.RESUMED
             await prev.save()
             logger.info(msg=f'Resuming from job {prev.id}: {len(prev.regions_completed)} steps already done')
 
     await job.insert()
 
-    background_tasks.add_task(func=_run_deep_scrape, job_id=str(object=job.id))
-
     return JSONResponse(
         content={
             'status': JobStatus.STARTED,
             'job_id': str(object=job.id),
-            'message': 'Scrape started in background.',
+            'message': 'Scrape job queued — worker will pick it up shortly.',
         },
     )
 
@@ -390,9 +301,15 @@ async def update_search_api(search_id: str, request: Request) -> JSONResponse:
 
 
 @router.post(path='/enrich')
-async def trigger_enrich(background_tasks: BackgroundTasks) -> JSONResponse:
-    """Manually trigger amenity enrichment for un-enriched listings."""
-    from app.scheduler.jobs import enrich_amenities_job
+async def trigger_enrich() -> JSONResponse:
+    """Signal the worker to run amenity enrichment on its next cycle.
 
-    background_tasks.add_task(func=enrich_amenities_job, batch_size=1000)
-    return JSONResponse(content={'status': JobStatus.STARTED, 'message': 'Enriching up to 1000 listings'})
+    The worker's enrich_amenities_job runs every 30 minutes automatically.
+    This endpoint is informational — it confirms enrichment is scheduled.
+    """
+    return JSONResponse(
+        content={
+            'status': JobStatus.STARTED,
+            'message': 'Amenity enrichment runs automatically every 30 minutes via the worker.',
+        },
+    )

@@ -12,28 +12,27 @@ from app.models import DealType, Listing, SavedSearch, ScrapeJob
 pytestmark = pytest.mark.asyncio
 
 
+def _make_search_request(name: str, filters: dict) -> AsyncMock:
+    """Build a mock Request with JSON body for save_search_api."""
+    mock = AsyncMock()
+    mock.json = AsyncMock(return_value={'name': name, 'filters': filters})
+    return mock
+
+
 class TestSaveSearchAPI:
     """Test POST /api/searches (upsert logic, filter sanitization)."""
 
     async def test_create_new_search(self):
         from app.routes.api import save_search_api
 
-        # Simulate request
-        mock_request = AsyncMock()
-        mock_request.json = AsyncMock(
-            return_value={
-                'name': 'My Search',
-                'filters': {'deal_type': 'rent', 'rooms_min': '3', 'price_max': '8000'},
-            },
+        response = await save_search_api(
+            _make_search_request('My Search', {'deal_type': 'rent', 'rooms_min': '3', 'price_max': '8000'}),
         )
-
-        response = await save_search_api(mock_request)
         data = response.body.decode()
 
         assert 'saved' in data
         assert 'My Search' in data
 
-        # Check DB
         saved = await SavedSearch.find_one(SavedSearch.name == 'My Search')
         assert saved is not None
         assert saved.filters['deal_type'] == 'rent'
@@ -42,47 +41,35 @@ class TestSaveSearchAPI:
     async def test_upsert_existing_search(self):
         from app.routes.api import save_search_api
 
-        # Create initial
         await SavedSearch(name='Existing', filters={'deal_type': 'rent'}).insert()
 
-        mock_request = AsyncMock()
-        mock_request.json = AsyncMock(
-            return_value={
-                'name': 'Existing',
-                'filters': {'deal_type': 'forsale', 'rooms_min': '4'},
-            },
+        response = await save_search_api(
+            _make_search_request('Existing', {'deal_type': 'forsale', 'rooms_min': '4'}),
         )
-
-        response = await save_search_api(mock_request)
         data = response.body.decode()
         assert 'updated' in data
 
-        # Should still be only 1 search
         count = await SavedSearch.find(SavedSearch.name == 'Existing').count()
         assert count == 1
 
-        # Filters should be updated
         saved = await SavedSearch.find_one(SavedSearch.name == 'Existing')
         assert saved.filters['deal_type'] == 'forsale'
 
     async def test_sanitizes_unknown_filter_keys(self):
         from app.routes.api import save_search_api
 
-        mock_request = AsyncMock()
-        mock_request.json = AsyncMock(
-            return_value={
-                'name': 'Sanitized',
-                'filters': {
+        await save_search_api(
+            _make_search_request(
+                'Sanitized',
+                {
                     'deal_type': 'rent',
                     'rooms_min': '3',
                     'malicious_key': 'DROP TABLE',
                     '__proto__': 'pollution',
                     'constructor': 'evil',
                 },
-            },
+            ),
         )
-
-        await save_search_api(mock_request)
 
         saved = await SavedSearch.find_one(SavedSearch.name == 'Sanitized')
         assert 'malicious_key' not in saved.filters
@@ -93,20 +80,17 @@ class TestSaveSearchAPI:
     async def test_empty_values_excluded(self):
         from app.routes.api import save_search_api
 
-        mock_request = AsyncMock()
-        mock_request.json = AsyncMock(
-            return_value={
-                'name': 'Empty Vals',
-                'filters': {
+        await save_search_api(
+            _make_search_request(
+                'Empty Vals',
+                {
                     'deal_type': 'rent',
-                    'price_min': '',  # empty string - falsy
+                    'price_min': '',
                     'price_max': '',
                     'rooms_min': '3',
                 },
-            },
+            ),
         )
-
-        await save_search_api(mock_request)
 
         saved = await SavedSearch.find_one(SavedSearch.name == 'Empty Vals')
         assert 'price_min' not in saved.filters
@@ -116,15 +100,7 @@ class TestSaveSearchAPI:
     async def test_default_name_when_empty(self):
         from app.routes.api import save_search_api
 
-        mock_request = AsyncMock()
-        mock_request.json = AsyncMock(
-            return_value={
-                'name': '   ',  # whitespace only
-                'filters': {'deal_type': 'rent'},
-            },
-        )
-
-        await save_search_api(mock_request)
+        await save_search_api(_make_search_request('   ', {'deal_type': 'rent'}))
 
         saved = await SavedSearch.find_one(SavedSearch.name == 'Saved Search')
         assert saved is not None
@@ -137,8 +113,6 @@ class TestScrapeStatus:
         from app.routes.api import scrape_status
 
         response = await scrape_status()
-        import json
-
         data = json.loads(response.body)
 
         assert data['total_listings'] == 0
@@ -158,8 +132,6 @@ class TestScrapeStatus:
         ).insert()
 
         response = await scrape_status()
-        import json
-
         data = json.loads(response.body)
 
         assert data['total_listings'] == 2
@@ -174,38 +146,28 @@ class TestScrapeStatus:
 class TestTriggerScrape:
     """Test POST /api/scrape."""
 
-    async def test_prevents_duplicate_scrape(self):
-        from fastapi import BackgroundTasks
-
+    @pytest.mark.parametrize('blocking_status', ['running', 'pending'])
+    async def test_prevents_duplicate(self, blocking_status):
         from app.routes.api import trigger_scrape
 
-        # Already running job
-        await ScrapeJob(status='running').insert()
+        await ScrapeJob(status=blocking_status).insert()
 
-        bg = BackgroundTasks()
-        response = await trigger_scrape(bg)
-        import json
-
+        response = await trigger_scrape()
         data = json.loads(response.body)
 
         assert data['status'] == 'already_running'
 
     async def test_starts_new_scrape(self):
-        from fastapi import BackgroundTasks
-
         from app.routes.api import trigger_scrape
 
-        bg = BackgroundTasks()
-        response = await trigger_scrape(bg)
-        import json
-
+        response = await trigger_scrape()
         data = json.loads(response.body)
 
         assert data['status'] == 'started'
         assert 'job_id' in data
 
-        # Job should exist in DB
-        job = await ScrapeJob.find_one(ScrapeJob.status == 'running')
+        # Job should exist in DB as pending (worker picks it up)
+        job = await ScrapeJob.find_one(ScrapeJob.status == 'pending')
         assert job is not None
 
 

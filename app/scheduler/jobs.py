@@ -4,11 +4,13 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+import httpx
+
 from app.consts import FilterParam, JobStatus
 from app.models import Amenities, DealType, Listing, SavedSearch, ScrapeJob
 from app.notifications.dispatcher import notify_new_listing, notify_price_drop
 from app.scraper.sync import upsert_listings
-from app.scraper.yad2_client import REGIONS, fetch_all_listings, fetch_item_detail
+from app.scraper.yad2_client import REGIONS, _deep_fetch_region, fetch_all_listings, fetch_item_detail, parse_marker
 from app.search.engine import match_saved_search
 
 logger: logging.Logger = logging.getLogger(name=__name__)
@@ -223,3 +225,77 @@ async def enrich_amenities_job(batch_size: int = 1000) -> None:
             await __import__(name='asyncio').sleep(delay)
 
     logger.info(msg=f'Amenity enrichment done: {enriched} enriched, {failed} failed')
+
+
+async def run_deep_scrape(job_id: str) -> None:
+    """Execute a deep scrape for all regions and deal types, updating job progress.
+
+    Runs multiple region+deal_type combinations concurrently (bounded by
+    the global API semaphore in yad2_client).
+    """
+    job: ScrapeJob | None = await ScrapeJob.get(document_id=job_id)
+    if not job:
+        return
+
+    job.status = JobStatus.RUNNING
+    await job.save()
+
+    job_lock: asyncio.Lock = asyncio.Lock()
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+
+            async def _scrape_step(deal_type: DealType, region_id: int) -> None:
+                step_key: str = f'{deal_type.value}:{region_id}'
+
+                if step_key in job.regions_completed:
+                    return
+
+                logger.info(msg=f'[Job {job_id}] Deep scraping {deal_type.value} region {region_id}')
+
+                async def on_chunk(chunk_markers: list[dict[str, Any]], _deal_type: DealType = deal_type) -> None:
+                    listings: list[Listing] = [
+                        parsed
+                        for m in chunk_markers
+                        if (parsed := parse_marker(marker=m, deal_type=_deal_type)) is not None
+                    ]
+                    if listings:
+                        new_listings, price_drops = await upsert_listings(listings=listings)
+                        async with job_lock:
+                            job.total_fetched += len(listings)
+                            job.total_new += len(new_listings)
+                            job.total_price_drops += len(price_drops)
+                            await job.save()
+
+                await _deep_fetch_region(
+                    region_id=region_id,
+                    deal_type=deal_type,
+                    api_params={},
+                    client=client,
+                    on_chunk=on_chunk,
+                )
+
+                async with job_lock:
+                    job.regions_completed.append(step_key)
+                    await job.save()
+
+            tasks: list[asyncio.Task[None]] = [
+                asyncio.create_task(_scrape_step(deal_type=deal_type, region_id=region_id))
+                for deal_type in [DealType.RENT, DealType.FORSALE]
+                for region_id in REGIONS
+            ]
+            await asyncio.gather(*tasks)
+
+        job.status = JobStatus.COMPLETED
+        job.completed_at = datetime.now(tz=UTC)
+        job.current_region = None
+        job.current_deal_type = None
+        await job.save()
+        logger.info(msg=f'[Job {job_id}] Scrape completed: {job.total_fetched} fetched, {job.total_new} new')
+
+    except Exception as e:
+        logger.error(msg=f'[Job {job_id}] Scrape failed: {e}')
+        job.status = JobStatus.FAILED
+        job.error = str(e)
+        job.completed_at = datetime.now(tz=UTC)
+        await job.save()

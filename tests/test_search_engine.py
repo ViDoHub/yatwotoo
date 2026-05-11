@@ -157,29 +157,21 @@ class TestSearchFiltersQueryBuilder:
 class TestSearchFiltersSort:
     """Test SearchFilters.get_sort()."""
 
-    def test_default_sort_newest(self):
-        sf = SearchFilters({})
-        assert sf.get_sort() == [('first_seen_at', -1)]
-
-    def test_sort_price_asc(self):
-        sf = SearchFilters({'sort_by': 'price_asc'})
-        assert sf.get_sort() == [('price', 1)]
-
-    def test_sort_price_desc(self):
-        sf = SearchFilters({'sort_by': 'price_desc'})
-        assert sf.get_sort() == [('price', -1)]
-
-    def test_sort_price_per_sqm(self):
-        sf = SearchFilters({'sort_by': 'price_per_sqm_asc'})
-        assert sf.get_sort() == [('price_per_sqm', 1)]
-
-    def test_sort_sqm_desc(self):
-        sf = SearchFilters({'sort_by': 'sqm_desc'})
-        assert sf.get_sort() == [('sqm', -1)]
-
-    def test_unknown_sort_defaults_to_newest(self):
-        sf = SearchFilters({'sort_by': 'invalid_sort'})
-        assert sf.get_sort() == [('first_seen_at', -1)]
+    @pytest.mark.parametrize(
+        ('sort_by', 'expected'),
+        [
+            (None, [('first_seen_at', -1)]),
+            ('price_asc', [('price', 1)]),
+            ('price_desc', [('price', -1)]),
+            ('price_per_sqm_asc', [('price_per_sqm', 1)]),
+            ('sqm_desc', [('sqm', -1)]),
+            ('invalid_sort', [('first_seen_at', -1)]),
+        ],
+    )
+    def test_sort(self, sort_by, expected):
+        filters = {'sort_by': sort_by} if sort_by else {}
+        sf = SearchFilters(filters)
+        assert sf.get_sort() == expected
 
 
 class TestSearchListings:

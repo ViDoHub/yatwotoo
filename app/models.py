@@ -148,7 +148,7 @@ class UserSettings(Document):
 
 
 class ScrapeJob(Document):
-    status: str = JobStatus.RUNNING
+    status: str = JobStatus.PENDING
     started_at: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
     completed_at: datetime | None = None
     current_region: int | None = None

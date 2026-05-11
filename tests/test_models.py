@@ -92,7 +92,7 @@ class TestListing:
 class TestScrapeJob:
     def test_defaults(self):
         job = ScrapeJob()
-        assert job.status == 'running'
+        assert job.status == 'pending'
         assert job.completed_at is None
         assert job.regions_completed == []
         assert job.total_fetched == 0

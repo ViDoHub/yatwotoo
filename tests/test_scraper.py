@@ -108,30 +108,33 @@ class TestParseMarker:
 class TestParseHelpers:
     """Test _parse_float and _parse_int."""
 
-    def test_parse_float_valid(self):
-        assert _parse_float('3.5') == 3.5
-        assert _parse_float(3) == 3.0
-        assert _parse_float('0') == 0.0
+    @pytest.mark.parametrize(
+        ('input_val', 'expected'),
+        [
+            ('3.5', 3.5),
+            (3, 3.0),
+            ('0', 0.0),
+            (None, None),
+            ('abc', None),
+            ('', None),
+        ],
+    )
+    def test_parse_float(self, input_val, expected):
+        assert _parse_float(input_val) == expected
 
-    def test_parse_float_none(self):
-        assert _parse_float(None) is None
-
-    def test_parse_float_invalid(self):
-        assert _parse_float('abc') is None
-        assert _parse_float('') is None
-
-    def test_parse_int_valid(self):
-        assert _parse_int('42') == 42
-        assert _parse_int(7) == 7
-        assert _parse_int('0') == 0
-
-    def test_parse_int_none(self):
-        assert _parse_int(None) is None
-
-    def test_parse_int_invalid(self):
-        assert _parse_int('abc') is None
-        assert _parse_int('3.5') == 3  # truncates float strings to int
-        assert _parse_int('abc') is None
+    @pytest.mark.parametrize(
+        ('input_val', 'expected'),
+        [
+            ('42', 42),
+            (7, 7),
+            ('0', 0),
+            (None, None),
+            ('abc', None),
+            ('3.5', 3),
+        ],
+    )
+    def test_parse_int(self, input_val, expected):
+        assert _parse_int(input_val) == expected
 
 
 class TestBuildApiParams:

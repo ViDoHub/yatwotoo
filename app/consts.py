@@ -44,6 +44,7 @@ class SortBy(StrEnum):
 class JobStatus(StrEnum):
     """Scrape job lifecycle statuses."""
 
+    PENDING = 'pending'
     RUNNING = 'running'
     COMPLETED = 'completed'
     FAILED = 'failed'
