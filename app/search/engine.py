@@ -20,24 +20,19 @@ class SearchFilters:
         if deal_type := self.filters.get(FilterParam.DEAL_TYPE):
             query['deal_type'] = deal_type
 
+        # Geographic filters: more specific levels override less specific ones
+        # Hierarchy: top_area → city → neighborhood
+        has_cities: bool = False
+        has_neighborhoods: bool = False
+
         # City filter (singular or plural)
         if cities := self.filters.get(FilterParam.CITIES):
             if isinstance(cities, list) and cities:
                 query['address.city'] = {'$in': cities}
+                has_cities = True
         elif city := self.filters.get(FilterParam.CITY):
             query['address.city'] = city
-
-        # Area filter (multi-select)
-        if (area_ids := self.filters.get(FilterParam.AREA_IDS)) and isinstance(area_ids, list) and area_ids:
-            query['address.area_id'] = {'$in': [int(a) for a in area_ids]}
-
-        # Top area filter (multi-select)
-        if (
-            (top_area_ids := self.filters.get(FilterParam.TOP_AREA_IDS))
-            and isinstance(top_area_ids, list)
-            and top_area_ids
-        ):
-            query['address.top_area_id'] = {'$in': [int(a) for a in top_area_ids]}
+            has_cities = True
 
         # Neighborhood filter (multi-select)
         if (
@@ -46,6 +41,21 @@ class SearchFilters:
             and neighborhoods
         ):
             query['address.neighborhood'] = {'$in': neighborhoods}
+            has_neighborhoods = True
+
+        # Area filter (multi-select)
+        if (area_ids := self.filters.get(FilterParam.AREA_IDS)) and isinstance(area_ids, list) and area_ids:
+            query['address.area_id'] = {'$in': [int(a) for a in area_ids]}
+
+        # Top area filter — skip when cities or neighborhoods are set to avoid conflicts
+        if (
+            not has_cities
+            and not has_neighborhoods
+            and (top_area_ids := self.filters.get(FilterParam.TOP_AREA_IDS))
+            and isinstance(top_area_ids, list)
+            and top_area_ids
+        ):
+            query['address.top_area_id'] = {'$in': [int(a) for a in top_area_ids]}
 
         # Rooms range
         if rooms_min := self.filters.get(FilterParam.ROOMS_MIN):

@@ -1,5 +1,6 @@
 import math
 from typing import Any
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
@@ -130,6 +131,11 @@ async def listings_page(request: Request) -> Response:
 
     area_counts: dict[int, int] = await get_area_counts()
 
+    # Build pagination query string (all params except page)
+    pagination_qs: str = urlencode(
+        [(k, v) for k, v in request.query_params.multi_items() if k != FilterParam.PAGE],
+    )
+
     # If htmx request, return partial
     if request.headers.get(HX_REQUEST):
         return templates.TemplateResponse(
@@ -141,6 +147,7 @@ async def listings_page(request: Request) -> Response:
                 'page': page,
                 'total_pages': total_pages,
                 'filters': filters,
+                'pagination_qs': pagination_qs,
             },
         )
 
@@ -160,6 +167,7 @@ async def listings_page(request: Request) -> Response:
             'area_counts': area_counts,
             'view_mode': params.get(FilterParam.VIEW, ViewMode.LIST),
             'selected_neighborhoods': filters.get(FilterParam.NEIGHBORHOODS, []),
+            'pagination_qs': pagination_qs,
         },
     )
 
