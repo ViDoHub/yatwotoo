@@ -86,7 +86,9 @@
                     {% if listing.address.area %}
                     <p style="font-size: 0.8125rem; color: #aeaeb2; margin-top: 0.125rem;">{{ listing.address.area }}</p>
                     {% endif %}
-                    {% if listing.first_seen_at %}
+                    {% if listing.date_added %}
+                    <p style="font-size: 0.75rem; color: #aeaeb2; margin-top: 0.25rem;">Published {{ listing.date_added[:10].split('-') | reverse | join('/') }}{% if listing.date_updated %} · Updated {{ listing.date_updated[:10].split('-') | reverse | join('/') }}{% endif %}</p>
+                    {% elif listing.first_seen_at and listing.first_seen_at.year > 1970 %}
                     <p style="font-size: 0.75rem; color: #aeaeb2; margin-top: 0.25rem;">Published {{ listing.first_seen_at.strftime('%d/%m/%Y') }}</p>
                     {% endif %}
                 </div>
@@ -111,7 +113,7 @@
                 {% endif %}
                 {% if listing.floor is not none %}
                 <div style="background: #f5f5f7; border-radius: 12px; padding: 1rem; text-align: center;">
-                    <div style="font-size: 1.25rem; font-weight: 600; color: #1d1d1f;">{{ listing.floor }}</div>
+                    <div style="font-size: 1.25rem; font-weight: 600; color: #1d1d1f;">{{ listing.floor }}{% if listing.total_floors %} / {{ listing.total_floors }}{% endif %}</div>
                     <div style="font-size: 0.6875rem; color: #86868b; margin-top: 0.125rem;">Floor</div>
                 </div>
                 {% endif %}
@@ -136,6 +138,10 @@
                     {% if listing.amenities.shelter %}<span style="background: #e8f5e9; color: #2e7d32; font-size: 0.75rem; font-weight: 500; padding: 0.375rem 0.75rem; border-radius: 20px;">Shelter</span>{% endif %}
                     {% if listing.amenities.bars %}<span style="background: #e8f5e9; color: #2e7d32; font-size: 0.75rem; font-weight: 500; padding: 0.375rem 0.75rem; border-radius: 20px;">Window Bars</span>{% endif %}
                     {% if listing.amenities.boiler %}<span style="background: #e8f5e9; color: #2e7d32; font-size: 0.75rem; font-weight: 500; padding: 0.375rem 0.75rem; border-radius: 20px;">Solar Boiler</span>{% endif %}
+                    {% if listing.amenities.renovated %}<span style="background: #e8f5e9; color: #2e7d32; font-size: 0.75rem; font-weight: 500; padding: 0.375rem 0.75rem; border-radius: 20px;">Renovated</span>{% endif %}
+                    {% if listing.amenities.storage %}<span style="background: #e8f5e9; color: #2e7d32; font-size: 0.75rem; font-weight: 500; padding: 0.375rem 0.75rem; border-radius: 20px;">Storage</span>{% endif %}
+                    {% if listing.amenities.long_term %}<span style="background: #e8f5e9; color: #2e7d32; font-size: 0.75rem; font-weight: 500; padding: 0.375rem 0.75rem; border-radius: 20px;">Long Term</span>{% endif %}
+                    {% if listing.amenities.for_partners %}<span style="background: #e8f5e9; color: #2e7d32; font-size: 0.75rem; font-weight: 500; padding: 0.375rem 0.75rem; border-radius: 20px;">Roommates OK</span>{% endif %}
                 </div>
             </div>
 
@@ -151,6 +157,45 @@
             {% if listing.entry_date %}
             <div class="mb-8">
                 <span style="font-size: 0.8125rem; color: #86868b;">Entry date: {{ listing.entry_date }}</span>
+            </div>
+            {% endif %}
+
+            <!-- Costs & Details -->
+            {% if listing.property_tax or listing.house_committee or listing.payments_in_year or listing.garden_area or listing.contact_name %}
+            <div class="mb-8">
+                <h3 style="font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: #86868b; margin-bottom: 0.75rem;">Details</h3>
+                <div style="background: #f5f5f7; border-radius: 12px; padding: 1rem;">
+                    {% if listing.property_tax %}
+                    <div class="flex justify-between" style="font-size: 0.8125rem; padding: 0.375rem 0; border-bottom: 1px solid rgba(0,0,0,0.04);">
+                        <span style="color: #86868b;">Property Tax (2 months)</span>
+                        <span style="font-weight: 500; color: #1d1d1f;">{{ listing.property_tax }}</span>
+                    </div>
+                    {% endif %}
+                    {% if listing.house_committee %}
+                    <div class="flex justify-between" style="font-size: 0.8125rem; padding: 0.375rem 0; border-bottom: 1px solid rgba(0,0,0,0.04);">
+                        <span style="color: #86868b;">House Committee</span>
+                        <span style="font-weight: 500; color: #1d1d1f;">{{ listing.house_committee }}</span>
+                    </div>
+                    {% endif %}
+                    {% if listing.payments_in_year %}
+                    <div class="flex justify-between" style="font-size: 0.8125rem; padding: 0.375rem 0; border-bottom: 1px solid rgba(0,0,0,0.04);">
+                        <span style="color: #86868b;">Payments / Year</span>
+                        <span style="font-weight: 500; color: #1d1d1f;">{{ listing.payments_in_year }}</span>
+                    </div>
+                    {% endif %}
+                    {% if listing.garden_area %}
+                    <div class="flex justify-between" style="font-size: 0.8125rem; padding: 0.375rem 0; border-bottom: 1px solid rgba(0,0,0,0.04);">
+                        <span style="color: #86868b;">Garden</span>
+                        <span style="font-weight: 500; color: #1d1d1f;">{{ listing.garden_area }} sqm</span>
+                    </div>
+                    {% endif %}
+                    {% if listing.contact_name %}
+                    <div class="flex justify-between" style="font-size: 0.8125rem; padding: 0.375rem 0;">
+                        <span style="color: #86868b;">Contact</span>
+                        <span style="font-weight: 500; color: #1d1d1f;">{{ listing.contact_name }}</span>
+                    </div>
+                    {% endif %}
+                </div>
             </div>
             {% endif %}
 

@@ -229,7 +229,24 @@ class TestFetchItemDetail:
         assert detail.amenities.furnished is True
         assert detail.amenities.parking is True
         assert detail.amenities.balcony is True  # balconies=2 > 0
+        assert detail.amenities.renovated is True
+        assert detail.amenities.long_term is False
+        assert detail.amenities.storage is True
+        assert detail.amenities.for_partners is False
         assert detail.description == 'דירה מרווחת עם נוף לים'
+        assert detail.images == [
+            'https://img.yad2.co.il/Pic/1.jpeg',
+            'https://img.yad2.co.il/Pic/2.jpeg',
+        ]
+        assert detail.entry_date == '04/04/2026'
+        assert detail.date_added == '2026-04-04 00:03:39'
+        assert detail.date_updated == '2026-04-04 00:08:30'
+        assert detail.property_tax == '1,100 ₪'
+        assert detail.house_committee == '300 ₪'
+        assert detail.total_floors == 7
+        assert detail.contact_name == 'יוסף'
+        assert detail.garden_area == 0
+        assert detail.payments_in_year == 12
 
     async def test_rate_limit_with_backoff(self):
         """Should retry on 429 with exponential backoff."""

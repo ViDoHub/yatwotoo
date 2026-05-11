@@ -115,7 +115,20 @@ class TestEnrichAmenitiesJob:
         with patch(
             'app.scheduler.jobs.fetch_item_detail',
             new_callable=AsyncMock,
-            return_value=ItemDetail(amenities=mock_amenities, description='test desc'),
+            return_value=ItemDetail(
+                amenities=mock_amenities,
+                description='test desc',
+                images=['https://img.yad2.co.il/1.jpeg'],
+                entry_date='01/05/2026',
+                date_added='2026-05-01 10:00:00',
+                date_updated='2026-05-05 14:30:00',
+                property_tax='800 ₪',
+                house_committee='200 ₪',
+                total_floors=5,
+                contact_name='דני',
+                garden_area=30,
+                payments_in_year=12,
+            ),
         ):
             with patch('app.config.settings.request_delay_min', 0):
                 with patch('app.config.settings.request_delay_max', 0):
@@ -126,6 +139,16 @@ class TestEnrichAmenitiesJob:
         assert saved.amenities.elevator is True
         assert saved.amenities.shelter is False
         assert saved.description == 'test desc'
+        assert saved.images == ['https://img.yad2.co.il/1.jpeg']
+        assert saved.entry_date == '01/05/2026'
+        assert saved.date_added == '2026-05-01 10:00:00'
+        assert saved.date_updated == '2026-05-05 14:30:00'
+        assert saved.property_tax == '800 ₪'
+        assert saved.house_committee == '200 ₪'
+        assert saved.total_floors == 5
+        assert saved.contact_name == 'דני'
+        assert saved.garden_area == 30
+        assert saved.payments_in_year == 12
 
     async def test_handles_fetch_failure(self):
         """Should count failures but continue processing."""

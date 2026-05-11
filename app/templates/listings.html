@@ -386,10 +386,11 @@
                     <svg class="fold-chevron" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
                 </summary>
                 <div class="flex flex-wrap gap-1.5" style="margin-top:0.5rem;">
-                    {% for val, label in [('newest', 'Newest'), ('price_asc', 'Price \u2191'), ('price_desc', 'Price \u2193'), ('price_per_sqm_asc', '\u20aa/sqm'), ('sqm_desc', 'Largest')] %}
+                    {% set sort_list = params.get('sort_by', []) if params.get('sort_by') is iterable and params.get('sort_by') is not string else [params.get('sort_by', '')] if params.get('sort_by') else [] %}
+                    {% for val, label in [('newest', 'Newest'), ('price_asc', 'Price ↑'), ('price_desc', 'Price ↓'), ('price_per_sqm_asc', '₪/sqm'), ('sqm_desc', 'Largest'), ('rooms_asc', 'Rooms ↑')] %}
                     <span class="sort-pill">
-                        <input type="radio" name="sort_by" value="{{ val }}" id="sort-{{ val }}"
-                               {% if params.get('sort_by', 'newest') == val %}checked{% endif %}>
+                        <input type="checkbox" name="sort_by" value="{{ val }}" id="sort-{{ val }}"
+                               {% if val in sort_list %}checked{% endif %}>
                         <label for="sort-{{ val }}">{{ label }}</label>
                     </span>
                     {% endfor %}
@@ -702,7 +703,7 @@
         const filters = {};
         for (const [key, value] of formData.entries()) {
             if (!value) continue;
-            if (key === 'top_area_ids' || key === 'cities' || key === 'neighborhoods') {
+            if (key === 'top_area_ids' || key === 'cities' || key === 'neighborhoods' || key === 'sort_by') {
                 if (!filters[key]) filters[key] = [];
                 filters[key].push(value);
             } else if (['parking','elevator','balcony','pets_allowed','air_conditioning','furnished','shelter'].includes(key)) {
@@ -711,7 +712,6 @@
                 filters[key] = value;
             }
         }
-        delete filters.sort_by;
         return filters;
     }
 

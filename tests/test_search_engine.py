@@ -173,16 +173,20 @@ def test_build_query_edge_case_values(filters: dict, absent_keys: list[str], pre
 @pytest.mark.parametrize(
     argnames=('sort_by', 'expected'),
     argvalues=[
-        (None, [('first_seen_at', -1)]),
+        (None, []),
         ('price_asc', [('price', 1)]),
         ('price_desc', [('price', -1)]),
         ('price_per_sqm_asc', [('price_per_sqm', 1)]),
         ('sqm_desc', [('sqm', -1)]),
-        ('invalid_sort', [('first_seen_at', -1)]),
+        ('newest', [('date_added', -1), ('first_seen_at', -1)]),
+        ('invalid_sort', []),
+        (['price_asc', 'newest'], [('price', 1), ('date_added', -1), ('first_seen_at', -1)]),
+        (['newest', 'sqm_desc'], [('date_added', -1), ('first_seen_at', -1), ('sqm', -1)]),
+        ([], []),
     ],
 )
-def test_sort(sort_by: str | None, expected: list[tuple[str, int]]):
-    filters: dict = {'sort_by': sort_by} if sort_by else {}
+def test_sort(sort_by: str | list[str] | None, expected: list[tuple[str, int]]):
+    filters: dict = {'sort_by': sort_by} if sort_by is not None else {}
     sf = SearchFilters(filters=filters)
     assert sf.get_sort() == expected
 

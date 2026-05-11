@@ -491,12 +491,26 @@ _AMENITY_KEY_MAP = {
     'bars': 'bars',
     'boiler': 'boiler',
     'accessibility': 'accessible',
+    'renovated': 'renovated',
+    'long_term': 'long_term',
+    'warhouse': 'storage',
+    'for_partners': 'for_partners',
 }
 
 
 class ItemDetail(NamedTuple):
     amenities: Amenities
     description: str
+    images: list[str] = []
+    entry_date: str = ''
+    date_added: str = ''
+    date_updated: str = ''
+    property_tax: str = ''
+    house_committee: str = ''
+    total_floors: int | None = None
+    contact_name: str = ''
+    garden_area: int | None = None
+    payments_in_year: int | None = None
 
 
 async def fetch_item_detail(
@@ -555,7 +569,50 @@ async def fetch_item_detail(
 
         description: str = data.get('info_text', '') or ''
 
-        return ItemDetail(amenities=Amenities(**amenity_values), description=description)
+        # Images (full-resolution URLs from detail page)
+        images: list[str] = data.get('images_urls', []) or []
+
+        # Entry / move-in date
+        entry_date: str = ''
+        for bar_item in data.get('info_bar_items', []):
+            if bar_item.get('key') == 'entrance':
+                entry_date = bar_item.get('titleWithoutLabel', '') or ''
+                break
+
+        # Original publish date
+        date_added: str = data.get('date_added', '') or ''
+
+        # Last updated date
+        date_updated: str = data.get('date_raw', '') or ''
+
+        # Cost details
+        property_tax: str = data.get('property_tax', '') or ''
+        house_committee: str = data.get('HouseCommittee', '') or ''
+
+        # Building info
+        total_floors: int | None = _parse_int(data.get('TotalFloor_text'))
+
+        # Contact
+        contact_name: str = data.get('contact_name', '') or ''
+
+        # Garden and payments
+        garden_area: int | None = _parse_int(data.get('garden_area'))
+        payments_in_year: int | None = _parse_int(data.get('payments_in_year'))
+
+        return ItemDetail(
+            amenities=Amenities(**amenity_values),
+            description=description,
+            images=images,
+            entry_date=entry_date,
+            date_added=date_added,
+            date_updated=date_updated,
+            property_tax=property_tax,
+            house_committee=house_committee,
+            total_floors=total_floors,
+            contact_name=contact_name,
+            garden_area=garden_area,
+            payments_in_year=payments_in_year,
+        )
 
     except (httpx.HTTPError, ValueError, KeyError) as e:
         logger.debug(msg=f'Error fetching detail for {token}: {e}')

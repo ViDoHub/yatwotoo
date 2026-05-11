@@ -51,6 +51,10 @@ class Amenities(BaseModel):
     bars: bool | None = None
     boiler: bool | None = None
     shelter: bool | None = None  # safe room (mamad)
+    renovated: bool | None = None
+    long_term: bool | None = None
+    storage: bool | None = None  # warehouse / machsan
+    for_partners: bool | None = None  # roommates allowed
 
 
 class Listing(Document):
@@ -68,8 +72,16 @@ class Listing(Document):
     images: list[str] = Field(default_factory=list)
     url: str = ''
     entry_date: str = ''  # move-in date or delivery date for new projects
+    date_added: str = ''  # original publish date from Yad2
+    date_updated: str = ''  # last updated date from Yad2
     project_name: str = ''  # for new projects
-    first_seen_at: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
+    property_tax: str = ''  # arnona per 2 months
+    house_committee: str = ''  # va'ad bayit fee
+    total_floors: int | None = None  # total floors in building
+    contact_name: str = ''  # landlord/agent name
+    garden_area: int | None = None  # garden sqm
+    payments_in_year: int | None = None  # payment installments
+    first_seen_at: datetime = Field(default_factory=lambda: datetime(1970, 1, 1, tzinfo=UTC))
     last_seen_at: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
     is_active: bool = True
 

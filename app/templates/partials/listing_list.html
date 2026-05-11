@@ -29,7 +29,9 @@
                     </svg>
                 </div>
                 {% endif %}
-                {% if listing.first_seen_at %}
+                {% if listing.date_added %}
+                <div style="font-size: 0.6875rem; color: #aeaeb2; margin-top: 0.375rem; text-align: center;">{{ listing.date_added[:10].split('-') | reverse | join('/') }}</div>
+                {% elif listing.first_seen_at and listing.first_seen_at.year > 1970 %}
                 <div style="font-size: 0.6875rem; color: #aeaeb2; margin-top: 0.375rem; text-align: center;">{{ listing.first_seen_at.strftime('%d/%m/%Y') }}</div>
                 {% endif %}
             </div>
@@ -91,6 +93,10 @@
                     {% if listing.amenities.pets_allowed %}<span style="font-size: 0.6875rem; background: #f5f5f7; color: #86868b; padding: 3px 8px; border-radius: 20px;">Pets OK</span>{% endif %}
                     {% if listing.amenities.shelter %}<span style="font-size: 0.6875rem; background: #f5f5f7; color: #86868b; padding: 3px 8px; border-radius: 20px;">Shelter</span>{% endif %}
                     {% if listing.amenities.furnished %}<span style="font-size: 0.6875rem; background: #f5f5f7; color: #86868b; padding: 3px 8px; border-radius: 20px;">Furnished</span>{% endif %}
+                    {% if listing.amenities.renovated %}<span style="font-size: 0.6875rem; background: #f5f5f7; color: #86868b; padding: 3px 8px; border-radius: 20px;">Renovated</span>{% endif %}
+                    {% if listing.amenities.storage %}<span style="font-size: 0.6875rem; background: #f5f5f7; color: #86868b; padding: 3px 8px; border-radius: 20px;">Storage</span>{% endif %}
+                    {% if listing.amenities.long_term %}<span style="font-size: 0.6875rem; background: #f5f5f7; color: #86868b; padding: 3px 8px; border-radius: 20px;">Long Term</span>{% endif %}
+                    {% if listing.amenities.for_partners %}<span style="font-size: 0.6875rem; background: #f5f5f7; color: #86868b; padding: 3px 8px; border-radius: 20px;">Roommates OK</span>{% endif %}
                 </div>
                 {% endif %}
             </div>

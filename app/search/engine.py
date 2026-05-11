@@ -123,11 +123,17 @@ class SearchFilters:
         return query
 
     def get_sort(self) -> list[tuple[str, int]]:
-        """Return sort specification based on filters."""
-        sort_by: str = self.filters.get(FilterParam.SORT_BY, SortBy.NEWEST)
+        """Return sort specification based on filters.
+
+        Supports multiple sort keys combined in order.
+        Returns empty list when no sort is specified (DB insertion order).
+        """
+        sort_by: str | list[str] = self.filters.get(FilterParam.SORT_BY, [])
+        if isinstance(sort_by, str):
+            sort_by = [sort_by] if sort_by else []
 
         sort_map: dict[str, list[tuple[str, int]]] = {
-            SortBy.NEWEST: [('first_seen_at', -1)],
+            SortBy.NEWEST: [('date_added', -1), ('first_seen_at', -1)],
             SortBy.PRICE_ASC: [('price', 1)],
             SortBy.PRICE_DESC: [('price', -1)],
             SortBy.PRICE_PER_SQM_ASC: [('price_per_sqm', 1)],
@@ -136,7 +142,14 @@ class SearchFilters:
             SortBy.ROOMS_ASC: [('rooms', 1)],
         }
 
-        return sort_map.get(sort_by, [('first_seen_at', -1)])
+        result: list[tuple[str, int]] = []
+        seen_fields: set[str] = set()
+        for key in sort_by:
+            for field, direction in sort_map.get(key, []):
+                if field not in seen_fields:
+                    result.append((field, direction))
+                    seen_fields.add(field)
+        return result
 
 
 async def search_listings(
@@ -155,7 +168,10 @@ async def search_listings(
     total: int = await Listing.find(query).count()
 
     skip: int = (page - 1) * page_size
-    listings: list[Listing] = await Listing.find(query).sort(sort).skip(skip).limit(page_size).to_list()
+    find_query = Listing.find(query)
+    if sort:
+        find_query = find_query.sort(sort)
+    listings: list[Listing] = await find_query.skip(skip).limit(page_size).to_list()
 
     return listings, total
 

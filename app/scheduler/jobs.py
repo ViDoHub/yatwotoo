@@ -216,6 +216,26 @@ async def enrich_amenities_job(batch_size: int = 5000) -> None:
             listing.amenities = detail.amenities
             if detail.description:
                 listing.description = detail.description
+            if detail.images:
+                listing.images = detail.images
+            if detail.entry_date:
+                listing.entry_date = detail.entry_date
+            if detail.date_added:
+                listing.date_added = detail.date_added
+            if detail.date_updated:
+                listing.date_updated = detail.date_updated
+            if detail.property_tax:
+                listing.property_tax = detail.property_tax
+            if detail.house_committee:
+                listing.house_committee = detail.house_committee
+            if detail.total_floors is not None:
+                listing.total_floors = detail.total_floors
+            if detail.contact_name:
+                listing.contact_name = detail.contact_name
+            if detail.garden_area is not None:
+                listing.garden_area = detail.garden_area
+            if detail.payments_in_year is not None:
+                listing.payments_in_year = detail.payments_in_year
             await listing.save()
             return True
         return False

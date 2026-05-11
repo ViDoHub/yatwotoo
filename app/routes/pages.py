@@ -14,7 +14,6 @@ from app.consts import (
     TEMPLATE_LISTING_LIST_PARTIAL,
     TEMPLATE_LISTINGS,
     FilterParam,
-    SortBy,
     ViewMode,
 )
 from app.models import AmenityFilter, DealType, Listing, NotificationLog, PriceHistory, SavedSearch
@@ -120,8 +119,14 @@ async def listings_page(request: Request) -> Response:
         except (ValueError, TypeError):
             pass
 
-    # Sort
-    filters[FilterParam.SORT_BY] = params.get(FilterParam.SORT_BY, SortBy.NEWEST)
+    # Sort (multi-select)
+    if sort_by_raw := request.query_params.getlist(key=FilterParam.SORT_BY):
+        sort_list: list[str] = []
+        for s in sort_by_raw:
+            sort_list.extend(s.split(sep=','))
+        sort_list = [s for s in sort_list if s]
+        if sort_list:
+            filters[FilterParam.SORT_BY] = sort_list
 
     page: int = int(params.get(FilterParam.PAGE, 1))
     listings: list[Listing]
