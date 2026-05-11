@@ -221,7 +221,7 @@ class TestFetchItemDetail:
         assert amenities is not None
         assert amenities.air_conditioning is True
         assert amenities.elevator is True
-        assert amenities.mamad is True
+        assert amenities.shelter is True
         assert amenities.pets_allowed is False
         assert amenities.furnished is True
         assert amenities.parking is True

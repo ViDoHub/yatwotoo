@@ -60,7 +60,7 @@ def sample_amenities():
         pets_allowed=True,
         air_conditioning=True,
         furnished=False,
-        mamad=True,
+        shelter=True,
     )
 
 
@@ -100,7 +100,7 @@ def sample_forsale_listing(sample_address, sample_location):
         sqm=100.0,
         price=2500000,
         price_per_sqm=25000.0,
-        amenities=Amenities(parking=True, elevator=True, mamad=True),
+        amenities=Amenities(parking=True, elevator=True, shelter=True),
         location=sample_location,
         url='https://www.yad2.co.il/item/sale456',
         is_active=True,

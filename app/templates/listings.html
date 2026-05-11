@@ -369,7 +369,7 @@
                     <svg class="fold-chevron" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
                 </summary>
                 <div class="flex flex-wrap gap-1.5" style="margin-top:0.5rem;">
-                    {% for key, label in [('parking', 'Parking'), ('elevator', 'Elevator'), ('balcony', 'Balcony'), ('pets_allowed', 'Pets'), ('air_conditioning', 'A/C'), ('furnished', 'Furnished'), ('mamad', 'Shelter')] %}
+                    {% for key, label in [('parking', 'Parking'), ('elevator', 'Elevator'), ('balcony', 'Balcony'), ('pets_allowed', 'Pets'), ('air_conditioning', 'A/C'), ('furnished', 'Furnished'), ('shelter', 'Shelter')] %}
                     <span class="amenity-toggle">
                         <input type="checkbox" name="{{ key }}" value="1" id="fl-{{ key }}"
                                {% if params.get(key) %}checked{% endif %}>
@@ -626,7 +626,7 @@
             if (val) params.set(param, val);
         });
 
-        const amenities = ['parking', 'elevator', 'balcony', 'pets_allowed', 'air_conditioning', 'furnished', 'mamad'];
+        const amenities = ['parking', 'elevator', 'balcony', 'pets_allowed', 'air_conditioning', 'furnished', 'shelter'];
         amenities.forEach(a => {
             if (document.getElementById('fl-' + a).checked) params.set(a, '1');
         });
@@ -705,7 +705,7 @@
             if (key === 'top_area_ids' || key === 'cities' || key === 'neighborhoods') {
                 if (!filters[key]) filters[key] = [];
                 filters[key].push(value);
-            } else if (['parking','elevator','balcony','pets_allowed','air_conditioning','furnished','mamad'].includes(key)) {
+            } else if (['parking','elevator','balcony','pets_allowed','air_conditioning','furnished','shelter'].includes(key)) {
                 filters[key] = true;
             } else {
                 filters[key] = value;

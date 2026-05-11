@@ -9,7 +9,7 @@ A self-hosted web app that continuously scrapes Yad2 (Israel's largest real esta
 - **Saved searches** with configurable filters (city, rooms, price, sqm, amenities, geo-area)
 - **Price-drop detection** - tracks price history and flags decreases
 - **Notifications** via WhatsApp (Callmebot), Telegram, or Email when new matches appear
-- **Amenity enrichment** - background job fetches detailed amenity data (parking, elevator, mamad, etc.)
+- **Amenity enrichment** - background job fetches detailed amenity data (parking, elevator, shelter, etc.)
 - **Automated backups** - nightly mongodump with configurable retention
 - **Auto-restore** - on first boot, restores from the latest backup if the DB is empty
 

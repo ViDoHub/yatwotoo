@@ -51,13 +51,13 @@ class TestAmenities:
         assert a.pets_allowed is None
         assert a.air_conditioning is None
         assert a.furnished is None
-        assert a.mamad is None
+        assert a.shelter is None
 
     def test_partial_values(self):
         a = Amenities(parking=True, elevator=False)
         assert a.parking is True
         assert a.elevator is False
-        assert a.mamad is None  # still None
+        assert a.shelter is None  # still None
 
 
 class TestGeoLocation:

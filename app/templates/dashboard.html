@@ -69,7 +69,7 @@
                 {% if f.get('balcony') %}{% set _ = qs_parts.append('balcony=1') %}{% endif %}
                 {% if f.get('pets_allowed') %}{% set _ = qs_parts.append('pets_allowed=1') %}{% endif %}
                 {% if f.get('furnished') %}{% set _ = qs_parts.append('furnished=1') %}{% endif %}
-                {% if f.get('mamad') %}{% set _ = qs_parts.append('mamad=1') %}{% endif %}
+                {% if f.get('shelter') %}{% set _ = qs_parts.append('shelter=1') %}{% endif %}
                 {% set search_url = '/listings?' + qs_parts|join('&') + '&search_id=' + search.id|string + '&search_name=' + search.name|urlencode %}
                 <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.875rem; background: #f5f5f7; border-radius: 12px;">
                     <a href="{{ search_url }}" style="flex: 1; text-decoration: none; color: inherit;">

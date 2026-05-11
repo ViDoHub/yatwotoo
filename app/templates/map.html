@@ -246,7 +246,7 @@
             <div>
                 <div class="filter-section-title">Amenities</div>
                 <div class="flex flex-wrap gap-1.5">
-                    {% for key, label in [('parking', 'Parking'), ('elevator', 'Elevator'), ('balcony', 'Balcony'), ('pets_allowed', 'Pets'), ('air_conditioning', 'A/C'), ('furnished', 'Furnished'), ('mamad', 'Shelter')] %}
+                    {% for key, label in [('parking', 'Parking'), ('elevator', 'Elevator'), ('balcony', 'Balcony'), ('pets_allowed', 'Pets'), ('air_conditioning', 'A/C'), ('furnished', 'Furnished'), ('shelter', 'Shelter')] %}
                     <span class="amenity-toggle">
                         <input type="checkbox" name="{{ key }}" value="1" id="map-{{ key }}">
                         <label for="map-{{ key }}">{{ label }}</label>
@@ -324,7 +324,7 @@
             if (val) params.set(f, val);
         });
 
-        const amenities = ['parking', 'elevator', 'balcony', 'pets_allowed', 'air_conditioning', 'furnished', 'mamad'];
+        const amenities = ['parking', 'elevator', 'balcony', 'pets_allowed', 'air_conditioning', 'furnished', 'shelter'];
         amenities.forEach(a => {
             if (document.getElementById('map-' + a).checked) params.set(a, '1');
         });
@@ -403,7 +403,7 @@
         ['rooms_min', 'rooms_max', 'price_min', 'price_max', 'sqm_min', 'sqm_max'].forEach(f => {
             document.getElementById('map-' + f).value = '';
         });
-        ['parking', 'elevator', 'balcony', 'pets_allowed', 'air_conditioning', 'furnished', 'mamad'].forEach(a => {
+        ['parking', 'elevator', 'balcony', 'pets_allowed', 'air_conditioning', 'furnished', 'shelter'].forEach(a => {
             document.getElementById('map-' + a).checked = false;
         });
         loadMarkers();
