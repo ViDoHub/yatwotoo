@@ -1,151 +1,155 @@
 # YaTwoToo - Yad2 Real Estate Aggregator
 
-A self-hosted web app that continuously scrapes Yad2 (Israel's largest real estate marketplace), stores listings in MongoDB, and provides advanced filtering, map visualization, price-drop detection, and WhatsApp/Telegram notifications.
+A real estate aggregator that scrapes Yad2 (Israel's largest property marketplace), stores listings, and provides advanced filtering, map visualization, price-drop detection, and notifications.
 
 ## What It Does
 
 - **Scrapes Yad2** every 15 minutes for rent, sale, and new project listings across all Israeli regions
-- **Map view** with clustered markers and geo-polygon search (Leaflet + MarkerCluster)
+- **Map view** with clustered markers and geo-polygon search
 - **Saved searches** with configurable filters (city, rooms, price, sqm, amenities, geo-area)
-- **Price-drop detection** - tracks price history and flags decreases
+- **Price-drop detection** — tracks price history and flags decreases
 - **Notifications** via WhatsApp (Callmebot), Telegram, or Email when new matches appear
-- **Amenity enrichment** - background job fetches detailed amenity data (parking, elevator, shelter, etc.)
-- **Automated backups** - nightly mongodump with configurable retention
-- **Auto-restore** - on first boot, restores from the latest backup if the DB is empty
+- **Amenity enrichment** — background job fetches detailed amenity data (parking, elevator, shelter, etc.)
+- **Stale listing cleanup** — marks inactive after 3 days, deletes after 7 days
 
-## Architecture
+## Project Structure
 
 ```
-┌─────────────────────────────────────────────────────┐
-│  Docker Compose                                     │
-│                                                     │
-│  ┌───────────────────────────────────────────────┐  │
-│  │  app (python:3.12-slim + uv)                  │  │
-│  │                                               │  │
-│  │  FastAPI + Uvicorn                            │  │
-│  │  ├── routes/pages.py      (Jinja2 HTML)       │  │
-│  │  ├── routes/api.py        (JSON endpoints)    │  │
-│  │  ├── routes/searches.py   (saved searches)    │  │
-│  │  ├── scraper/yad2_client  (httpx -> Yad2 API) │  │
-│  │  ├── scraper/sync.py      (upsert logic)      │  │
-│  │  ├── scheduler/jobs.py    (APScheduler tasks)  │  │
-│  │  └── notifications/       (WhatsApp/TG/Email) │  │
-│  │                                               │  │
-│  │  Static: Tailwind CSS, Leaflet.js, HTMX,     │  │
-│  │          TomSelect, Alpine.js                 │  │
-│  └──────────────────┬────────────────────────────┘  │
-│                     │                               │
-│  ┌──────────────────▼────────────────────────────┐  │
-│  │  mongo (mongo:7)                              │  │
-│  │  Database: yad2search                         │  │
-│  │  Collections: listings, price_history,        │  │
-│  │    saved_searches, scrape_jobs, user_settings │  │
-│  └───────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────┘
+yatwotoo/
+├── python/          ← Backend: FastAPI + MongoDB (Docker)
+│   ├── app/         (routes, scraper, scheduler, notifications)
+│   ├── tests/
+│   ├── docker-compose.yml
+│   ├── Dockerfile
+│   └── pyproject.toml
+└── next/            ← Frontend: Next.js + Supabase (Vercel)
+    ├── src/         (app router, components, API routes)
+    ├── vercel.json  (cron schedules)
+    └── package.json
 ```
 
-**Key technology choices:**
+## Python App (Backend)
+
+Self-hosted Docker stack with FastAPI, MongoDB, and background workers.
+
+### Tech Stack
 
 | Layer | Tech |
 |-------|------|
 | Web framework | FastAPI + Jinja2 templates |
-| ODM | Beanie (async, on top of Motor) |
+| ODM | Beanie (async MongoDB) |
 | Database | MongoDB 7 |
-| Scheduler | APScheduler (AsyncIOScheduler) |
-| HTTP client | httpx (async, with semaphore rate-limiting) |
-| Frontend | HTMX, Tailwind CSS, Leaflet.js, TomSelect |
-| Package manager | uv (fast Python installer) |
-| Container | Docker multi-stage (copies mongodump/mongorestore from mongo:7) |
+| Scheduler | APScheduler |
+| HTTP client | httpx (async, rate-limited) |
+| Frontend | HTMX, Tailwind CSS, Leaflet.js |
+| Package manager | uv |
 
-## Quick Start
-
-### Prerequisites
-
-- Docker & Docker Compose v2+
-
-### 1. Clone and configure
+### Quick Start
 
 ```bash
-git clone <repo-url> && cd yad22
+cd python
 cp .env.example .env
-```
-
-Edit `.env` if you want notifications:
-
-```env
-CALLMEBOT_PHONE=+972501234567
-CALLMEBOT_APIKEY=your_key
-POLL_INTERVAL_MINUTES=15
-```
-
-### 2. Start
-
-```bash
+# Edit .env for notifications (optional)
 docker compose up -d --build
 ```
 
-The app will be available at **http://localhost:8000**.
+Available at **http://localhost:8000**.
 
-On first start:
-1. Entrypoint waits for MongoDB to become healthy
-2. If a backup exists in `./backups/`, it auto-restores
-3. Scrape and amenity-enrichment jobs fire immediately
-4. Subsequent polls run every 15 minutes
+### Scheduled Jobs
 
-### 3. Stop
+| Job | Schedule | Description |
+|-----|----------|-------------|
+| `poll_listings_job` | Every 15 min | Incremental scrape of all regions/deal types |
+| `enrich_amenities_job` | Every 30 min | Fetches detail pages for amenity data |
+| `cleanup_stale_listings_job` | Daily 03:00 | Marks inactive (3d), removes stale (7d) |
+| `backup_db_job` | Daily 04:00 | mongodump to `./backups/` |
 
-```bash
-docker compose down
-```
-
-Data persists in the `mongo_data` Docker volume. Backups persist in `./backups/`.
-
-## Development
+### Development
 
 ```bash
-# Install dependencies (requires uv: https://docs.astral.sh/uv/)
+cd python
 uv sync
-
-# Run locally (needs a local MongoDB on :27017)
 uv run uvicorn app.main:app --reload --port 8000
-
-# Run tests
 uv run pytest tests/ -x -q
 ```
 
-## Environment Variables
+### Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `MONGODB_URL` | `mongodb://localhost:27017` | MongoDB connection string |
-| `MONGODB_DB` | `yad2search` | Database name |
 | `POLL_INTERVAL_MINUTES` | `15` | Minutes between scrape cycles |
-| `REQUEST_DELAY_MIN` | `0.3` | Min delay between API requests (seconds) |
-| `REQUEST_DELAY_MAX` | `0.8` | Max delay between API requests (seconds) |
 | `SCRAPE_CONCURRENCY` | `3` | Parallel scrape workers |
 | `CALLMEBOT_PHONE` | | WhatsApp number for notifications |
 | `CALLMEBOT_APIKEY` | | Callmebot API key |
 | `BACKUP_RETENTION_DAYS` | `7` | Days to keep old backups |
 
-## Scheduled Jobs
+---
+
+## Next.js App (Frontend)
+
+Modern frontend deployed on Vercel with Supabase (PostgreSQL) as the database.
+
+### Tech Stack
+
+| Layer | Tech |
+|-------|------|
+| Framework | Next.js 16 (App Router, Turbopack) |
+| Database | Supabase (PostgreSQL) |
+| Styling | Tailwind CSS 4 |
+| Maps | Leaflet.js |
+| Deployment | Vercel |
+
+### Quick Start
+
+```bash
+cd next
+cp .env.local.example .env.local
+# Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY
+npm install
+npm run dev
+```
+
+Available at **http://localhost:3000**.
+
+### Cron Jobs (Vercel)
+
+Configured in `next/vercel.json`:
 
 | Job | Schedule | Description |
 |-----|----------|-------------|
-| `poll_listings_job` | Every 15 min (immediate on start) | Incremental scrape of all regions/deal types |
-| `enrich_amenities_job` | Every 30 min (immediate on start) | Fetches detail pages for amenity data |
-| `cleanup_stale_listings_job` | Daily at 03:00 UTC | Marks listings not seen for 3 days as inactive |
-| `backup_db_job` | Daily at 04:00 UTC | mongodump to `./backups/`, prunes old archives |
+| `/api/cron/poll` | Every 15 min | Scrapes Yad2 and upserts to Supabase |
+| `/api/cron/enrich` | :05, :35 past hour | Enriches amenities for 50 listings/batch |
+| `/api/cron/cleanup` | Daily 03:00 | Marks inactive (3d), deletes stale (7d) |
 
-## Backup & Restore
+### Environment Variables
 
-Backups are gzipped mongodump archives stored in `./backups/`.
+| Variable | Description |
+|----------|-------------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon (public) key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key |
+
+---
+
+## Data Flow
+
+The Python and Next.js apps can run independently:
+
+- **Python app**: Scrapes Yad2 → MongoDB → serves UI at :8000
+- **Next.js app**: Scrapes Yad2 → Supabase → serves UI at :3000 (or Vercel)
+
+Both use the same Yad2 API client logic and identical scraping schedules.
+
+## Backup & Restore (Python/MongoDB)
 
 ```bash
 # Manual backup
+cd python
 mongodump --uri="mongodb://localhost:27017" --db=yad2search \
   --archive=backups/yad2search_$(date +%Y%m%d_%H%M%S).gz --gzip
 
-# Manual restore (inside container)
+# Restore inside container
 docker compose exec app mongorestore --uri="mongodb://mongo:27017" \
   --archive=/app/backups/yad2search_20260507.gz --gzip --drop
 ```

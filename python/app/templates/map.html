@@ -1,0 +1,420 @@
+{% extends "base.html" %}
+{% block title %}YaTwoToo - Map{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+<style>
+    #map { height: calc(100vh - 160px); border-radius: 16px; overflow: hidden; }
+    .marker-count {
+        position: absolute; top: 0.75rem; right: 0.75rem; z-index: 1000;
+        background: rgba(255,255,255,0.92); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+        border-radius: 10px; padding: 0.5rem 0.875rem;
+        font-size: 0.75rem; font-weight: 500; color: #1d1d1f;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04);
+        display: flex; align-items: center; gap: 0.5rem;
+    }
+    .marker-count .dot { width: 8px; height: 8px; border-radius: 50%; background: #0071e3; }
+    .loading-indicator {
+        position: absolute; top: 0.75rem; left: 50%; transform: translateX(-50%); z-index: 1000;
+        background: rgba(255,255,255,0.92); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+        border-radius: 10px; padding: 0.375rem 0.875rem;
+        font-size: 0.75rem; font-weight: 450; color: #86868b;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04);
+        display: none;
+    }
+    .filter-panel {
+        background: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.03);
+        position: sticky;
+        top: 5rem;
+        max-height: calc(100vh - 6rem);
+        overflow-y: auto;
+    }
+    .filter-section-title {
+        font-size: 0.6875rem;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: #86868b;
+        margin-bottom: 0.5rem;
+    }
+    .filter-input {
+        width: 100%;
+        border: 1px solid #d2d2d7;
+        border-radius: 10px;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+        color: #1d1d1f;
+        background: white;
+        outline: none;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .filter-input:focus {
+        border-color: #0071e3;
+        box-shadow: 0 0 0 3px rgba(0,113,227,0.12);
+    }
+    .filter-input::placeholder { color: #aeaeb2; }
+
+    .amenity-toggle input { display: none; }
+    .amenity-toggle label {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.375rem 0.625rem;
+        border-radius: 20px;
+        background: #f5f5f7;
+        font-size: 0.75rem;
+        font-weight: 450;
+        color: #86868b;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        user-select: none;
+    }
+    .amenity-toggle input:checked + label {
+        background: #e8f0fe;
+        color: #0071e3;
+    }
+    .amenity-toggle label:hover { background: #ececf0; }
+
+    .apple-btn {
+        width: 100%;
+        padding: 0.625rem;
+        border-radius: 10px;
+        border: none;
+        background: #0071e3;
+        color: white;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 0.15s, transform 0.1s;
+    }
+    .apple-btn:hover { background: #0077ed; }
+    .apple-btn:active { transform: scale(0.985); }
+
+    /* Tom Select overrides */
+    .ts-wrapper { border-radius: 10px !important; }
+    .ts-control {
+        padding: 0.5rem 0.75rem !important;
+        border-radius: 10px !important;
+        border-color: #d2d2d7 !important;
+        font-size: 0.875rem !important;
+        background: white !important;
+        box-shadow: none !important;
+        min-height: 38px !important;
+    }
+    .ts-control:focus-within, .ts-wrapper.focus .ts-control {
+        border-color: #0071e3 !important;
+        box-shadow: 0 0 0 3px rgba(0,113,227,0.12) !important;
+    }
+    .ts-dropdown {
+        border-radius: 10px !important;
+        border: none !important;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.04) !important;
+        margin-top: 4px !important;
+        padding: 4px !important;
+    }
+    .ts-dropdown .option {
+        border-radius: 8px !important;
+        padding: 0.5rem 0.75rem !important;
+        font-size: 0.8125rem !important;
+    }
+    .ts-dropdown .option.active { background: #f0f0f3 !important; }
+    .ts-control .item {
+        background: #e8f0fe !important;
+        color: #0071e3 !important;
+        border: none !important;
+        border-radius: 6px !important;
+        padding: 2px 8px !important;
+        font-size: 0.75rem !important;
+        font-weight: 500 !important;
+    }
+
+    /* Mobile filter drawer */
+    @media (max-width: 1023px) {
+        #filter-sidebar {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: 1100;
+            background: rgba(0,0,0,0.4);
+            padding: 1rem;
+            overflow-y: auto;
+        }
+        #filter-sidebar.mobile-open { display: block; }
+        #filter-sidebar .filter-panel {
+            max-width: 22rem;
+            margin: 3rem auto 0;
+            position: relative;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex gap-6" dir="ltr">
+    <!-- Mobile filter toggle -->
+    <button id="filter-toggle" onclick="document.getElementById('filter-sidebar').classList.toggle('mobile-open')"
+            class="lg:hidden fixed bottom-6 right-6 z-40 apple-btn"
+            style="width: auto; padding: 0.75rem 1.25rem; border-radius: 999px; box-shadow: 0 4px 16px rgba(0,0,0,0.18); display: flex; align-items: center; gap: 0.4rem; z-index: 1050;">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 4h18M3 12h12M3 20h6"/></svg>
+        Filters
+    </button>
+
+    <!-- Filters sidebar -->
+    <aside id="filter-sidebar" class="w-72 shrink-0 hidden lg:block"
+           onclick="if(event.target===this) this.classList.remove('mobile-open')">
+        <form id="filter-form" class="filter-panel space-y-5" onsubmit="applyFilters(); return false;">
+            <div class="flex items-center justify-between">
+                <h2 class="text-sm font-semibold" style="color: #1d1d1f">Filters</h2>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="clearFilters()" class="text-xs font-medium" style="color: #0071e3; background: none; border: none; cursor: pointer;">Clear all</button>
+                    <button type="button" class="lg:hidden text-xs font-medium"
+                            style="color: #86868b; background: none; border: none; cursor: pointer;"
+                            onclick="document.getElementById('filter-sidebar').classList.remove('mobile-open')">Close</button>
+                </div>
+            </div>
+
+            <!-- Deal type -->
+            <div>
+                <div class="filter-section-title">Deal Type</div>
+                <select name="deal_type" id="map-deal-type" class="filter-input">
+                    <option value="">All</option>
+                    <option value="rent">Rent</option>
+                    <option value="forsale">Buy</option>
+                </select>
+            </div>
+
+            <!-- Region -->
+            <div>
+                <div class="filter-section-title">Region</div>
+                <select id="map-top-area" name="top_area_ids" multiple placeholder="Select regions...">
+                    {% for id, name in top_areas.items() %}
+                    <option value="{{ id }}">{{ name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- City -->
+            <div>
+                <div class="filter-section-title">City</div>
+                <select id="map-city" name="cities" multiple placeholder="Select cities...">
+                    {% for code, name in cities.items() %}
+                    <option value="{{ name }}">{{ name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Rooms -->
+            <div>
+                <div class="filter-section-title">Rooms</div>
+                <div class="flex items-center gap-2">
+                    <input type="number" name="rooms_min" id="map-rooms-min" step="0.5" min="1" placeholder="Min" class="filter-input">
+                    <span style="color: #d2d2d7; font-size: 0.75rem;">--</span>
+                    <input type="number" name="rooms_max" id="map-rooms-max" step="0.5" min="1" placeholder="Max" class="filter-input">
+                </div>
+            </div>
+
+            <!-- Price -->
+            <div>
+                <div class="filter-section-title">Price (ILS)</div>
+                <div class="flex items-center gap-2">
+                    <input type="number" name="price_min" id="map-price-min" step="100" placeholder="Min" class="filter-input">
+                    <span style="color: #d2d2d7; font-size: 0.75rem;">--</span>
+                    <input type="number" name="price_max" id="map-price-max" step="100" placeholder="Max" class="filter-input">
+                </div>
+            </div>
+
+            <!-- Size -->
+            <div>
+                <div class="filter-section-title">Size (sqm)</div>
+                <div class="flex items-center gap-2">
+                    <input type="number" name="sqm_min" id="map-sqm-min" placeholder="Min" class="filter-input">
+                    <span style="color: #d2d2d7; font-size: 0.75rem;">--</span>
+                    <input type="number" name="sqm_max" id="map-sqm-max" placeholder="Max" class="filter-input">
+                </div>
+            </div>
+
+            <!-- Amenities -->
+            <div>
+                <div class="filter-section-title">Amenities</div>
+                <div class="flex flex-wrap gap-1.5">
+                    {% for key, label in [('parking', 'Parking'), ('elevator', 'Elevator'), ('balcony', 'Balcony'), ('pets_allowed', 'Pets'), ('air_conditioning', 'A/C'), ('furnished', 'Furnished'), ('shelter', 'Shelter')] %}
+                    <span class="amenity-toggle">
+                        <input type="checkbox" name="{{ key }}" value="1" id="map-{{ key }}">
+                        <label for="map-{{ key }}">{{ label }}</label>
+                    </span>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <button type="submit" class="apple-btn" onclick="closeFilterDrawer()">Apply Filters</button>
+        </form>
+    </aside>
+
+    <!-- Map -->
+    <div class="flex-1 min-w-0 relative">
+        <div class="marker-count">
+            <span class="dot"></span>
+            <span id="marker-count-text">0 listings in view</span>
+        </div>
+        <div class="loading-indicator" id="loading">Loading...</div>
+        <div id="map"></div>
+    </div>
+</div>
+
+<script>
+(function() {
+    // Center on Tel Aviv
+    const map = L.map('map').setView([32.07, 34.78], 12);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 19,
+    }).addTo(map);
+
+    // Marker cluster group for performance
+    const clusterGroup = L.markerClusterGroup({
+        maxClusterRadius: 60,
+        spiderfyOnMaxZoom: true,
+        showCoverageOnHover: false,
+        disableClusteringAtZoom: 17,
+    });
+    map.addLayer(clusterGroup);
+
+    const loadingEl = document.getElementById('loading');
+    const countEl = document.getElementById('marker-count-text');
+
+    let fetchController = null;
+
+    // Initialize TomSelect instances
+    let tsTopArea, tsCity;
+    document.addEventListener('DOMContentLoaded', () => {
+        tsTopArea = new TomSelect('#map-top-area', { plugins: ['remove_button'], placeholder: 'Select regions...' });
+        tsCity = new TomSelect('#map-city', { plugins: ['remove_button'], placeholder: 'Select cities...' });
+    });
+
+    function getFilterParams() {
+        const params = new URLSearchParams();
+        const bounds = map.getBounds();
+        params.set('south', bounds.getSouth().toFixed(6));
+        params.set('west', bounds.getWest().toFixed(6));
+        params.set('north', bounds.getNorth().toFixed(6));
+        params.set('east', bounds.getEast().toFixed(6));
+
+        const dealType = document.getElementById('map-deal-type').value;
+        if (dealType) params.set('deal_type', dealType);
+
+        const topAreaIds = tsTopArea ? tsTopArea.getValue() : [];
+        if (topAreaIds.length) params.set('top_area_ids', topAreaIds.join(','));
+
+        const cities = tsCity ? tsCity.getValue() : [];
+        if (cities.length) params.set('cities', cities.join(','));
+
+        const fields = ['rooms_min', 'rooms_max', 'price_min', 'price_max', 'sqm_min', 'sqm_max'];
+        fields.forEach(f => {
+            const val = document.getElementById('map-' + f).value;
+            if (val) params.set(f, val);
+        });
+
+        const amenities = ['parking', 'elevator', 'balcony', 'pets_allowed', 'air_conditioning', 'furnished', 'shelter'];
+        amenities.forEach(a => {
+            if (document.getElementById('map-' + a).checked) params.set(a, '1');
+        });
+
+        return params;
+    }
+
+    async function loadMarkers() {
+        const params = getFilterParams();
+
+        // Abort previous request if still in flight
+        if (fetchController) fetchController.abort();
+        fetchController = new AbortController();
+
+        loadingEl.style.display = 'block';
+
+        try {
+            const resp = await fetch(`/api/markers?${params}`, {
+                signal: fetchController.signal,
+            });
+            const data = await resp.json();
+
+            // Clear old markers
+            clusterGroup.clearLayers();
+
+            const newMarkers = [];
+            for (const m of data.markers) {
+                const priceStr = m.price ? m.price.toLocaleString() + ' ₪' : '';
+                const roomsStr = m.rooms ? m.rooms + ' rooms' : '';
+                const sqmStr = m.sqm ? m.sqm + ' sqm' : '';
+                const details = [roomsStr, sqmStr].filter(Boolean).join(' | ');
+
+                const popup = `
+                    <div style="min-width:180px">
+                        <strong>${m.address}</strong><br>
+                        ${priceStr ? '<span style="color:#2563eb;font-weight:600">' + priceStr + '</span><br>' : ''}
+                        ${details ? '<span style="color:#6b7280;font-size:0.8rem">' + details + '</span><br>' : ''}
+                        <a href="/listings/${m.yad2_id}" style="color:#2563eb;font-size:0.8rem">View details &rarr;</a>
+                    </div>
+                `;
+
+                const marker = L.marker([m.lat, m.lng]).bindPopup(popup);
+                newMarkers.push(marker);
+            }
+
+            clusterGroup.addLayers(newMarkers);
+            countEl.textContent = `${data.total} listing${data.total !== 1 ? 's' : ''} in view`;
+        } catch (e) {
+            if (e.name !== 'AbortError') {
+                console.error('Failed to load markers:', e);
+            }
+        } finally {
+            loadingEl.style.display = 'none';
+        }
+    }
+
+    // Load markers on map move/zoom (debounced)
+    let debounceTimer;
+    function debouncedLoad() {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(loadMarkers, 300);
+    }
+
+    map.on('moveend', debouncedLoad);
+    map.on('zoomend', debouncedLoad);
+
+    // Filter actions
+    window.applyFilters = function() {
+        loadMarkers();
+    };
+
+    window.clearFilters = function() {
+        document.getElementById('map-deal-type').value = '';
+        if (tsTopArea) tsTopArea.clear();
+        if (tsCity) tsCity.clear();
+        ['rooms_min', 'rooms_max', 'price_min', 'price_max', 'sqm_min', 'sqm_max'].forEach(f => {
+            document.getElementById('map-' + f).value = '';
+        });
+        ['parking', 'elevator', 'balcony', 'pets_allowed', 'air_conditioning', 'furnished', 'shelter'].forEach(a => {
+            document.getElementById('map-' + a).checked = false;
+        });
+        loadMarkers();
+    };
+
+    window.closeFilterDrawer = function() {
+        document.getElementById('filter-sidebar').classList.remove('mobile-open');
+    };
+
+    // Initial load
+    loadMarkers();
+})();
+</script>
+{% endblock %}

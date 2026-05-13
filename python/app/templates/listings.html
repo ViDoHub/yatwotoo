@@ -1,0 +1,830 @@
+{% extends "base.html" %}
+{% block title %}YaTwoToo - Listings{% endblock %}
+
+{% block head %}
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<style>
+    .filter-panel {
+        background: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.03);
+        position: sticky;
+        top: 5rem;
+        max-height: calc(100vh - 6rem);
+        overflow-y: auto;
+    }
+    .filter-panel::-webkit-scrollbar {
+        width: 4px;
+    }
+    .filter-panel::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .filter-panel::-webkit-scrollbar-thumb {
+        background: #d2d2d7;
+        border-radius: 4px;
+    }
+    .filter-section-title {
+        font-size: 0.6875rem;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: #86868b;
+        margin-bottom: 0.25rem;
+    }
+    .filter-input {
+        width: 100%;
+        border: 1px solid #d2d2d7;
+        border-radius: 10px;
+        padding: 0.2rem 0.6rem;
+        font-size: 0.8125rem;
+        color: #1d1d1f;
+        background: white;
+        outline: none;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .filter-input:focus {
+        border-color: #0071e3;
+        box-shadow: 0 0 0 3px rgba(0,113,227,0.12);
+    }
+    .filter-input::placeholder { color: #aeaeb2; }
+
+    .amenity-toggle input { display: none; }
+    .amenity-toggle label {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.375rem 0.625rem;
+        border-radius: 20px;
+        background: #f5f5f7;
+        font-size: 0.75rem;
+        font-weight: 450;
+        color: #86868b;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        user-select: none;
+    }
+    .amenity-toggle input:checked + label {
+        background: #e8f0fe;
+        color: #0071e3;
+    }
+    .amenity-toggle label:hover { background: #ececf0; }
+
+    .sort-pill input { display: none; }
+    .sort-pill label {
+        display: inline-block;
+        padding: 0.375rem 0.75rem;
+        border-radius: 20px;
+        background: #f5f5f7;
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: #86868b;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        user-select: none;
+        white-space: nowrap;
+    }
+    .sort-pill input:checked + label {
+        background: #e8f0fe;
+        color: #0071e3;
+    }
+    .sort-pill label:hover { background: #ececf0; }
+
+    /* Foldable filter sections */
+    .filter-foldable summary::-webkit-details-marker { display: none; }
+    .filter-foldable summary::marker { display: none; content: ''; }
+    .filter-foldable .fold-chevron {
+        transition: transform 0.2s ease;
+        color: #86868b;
+    }
+    .filter-foldable[open] .fold-chevron {
+        transform: rotate(180deg);
+    }
+    .filter-foldable summary { margin-bottom: 0; }
+
+    /* Tom Select Apple overrides */
+    .ts-wrapper { border-radius: 10px !important; }
+    .ts-control {
+        padding: 0.2rem 0.6rem !important;
+        border-radius: 10px !important;
+        border-color: #d2d2d7 !important;
+        font-size: 0.8125rem !important;
+        background: white !important;
+        box-shadow: none !important;
+        min-height: 28px !important;
+    }
+    .ts-control:focus-within, .ts-wrapper.focus .ts-control {
+        border-color: #0071e3 !important;
+        box-shadow: 0 0 0 3px rgba(0,113,227,0.12) !important;
+    }
+    .ts-dropdown {
+        border-radius: 10px !important;
+        border: none !important;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.04) !important;
+        margin-top: 4px !important;
+        padding: 4px !important;
+    }
+    .ts-dropdown .option {
+        border-radius: 8px !important;
+        padding: 0.5rem 0.75rem !important;
+        font-size: 0.8125rem !important;
+    }
+    .ts-dropdown .option.active { background: #f0f0f3 !important; }
+    .ts-control .item {
+        background: #e8f0fe !important;
+        color: #0071e3 !important;
+        border: none !important;
+        border-radius: 6px !important;
+        padding: 2px 8px !important;
+        font-size: 0.75rem !important;
+        font-weight: 500 !important;
+    }
+
+    .apple-btn {
+        width: 100%;
+        padding: 0.625rem;
+        border-radius: 10px;
+        border: none;
+        background: #0071e3;
+        color: white;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 0.15s, transform 0.1s;
+    }
+    .apple-btn:hover { background: #0077ed; }
+    .apple-btn:active { transform: scale(0.985); }
+
+    /* View toggle */
+    .view-toggle {
+        display: inline-flex;
+        background: #f5f5f7;
+        border-radius: 10px;
+        padding: 3px;
+        gap: 2px;
+    }
+    .view-toggle button {
+        padding: 0.375rem 0.875rem;
+        border-radius: 8px;
+        border: none;
+        background: transparent;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: #86868b;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+    .view-toggle button.active {
+        background: white;
+        color: #1d1d1f;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+
+    /* Map container */
+    #map-container { display: none; position: relative; }
+    #map-container.active { display: block; }
+    #list-container.active { display: block; }
+    #list-container { display: none; }
+    #map {
+        height: calc(100vh - 200px);
+        min-height: 400px;
+        border-radius: 16px;
+        overflow: hidden;
+    }
+    .marker-count {
+        position: absolute; top: 0.75rem; right: 0.75rem; z-index: 1000;
+        background: rgba(255,255,255,0.92); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+        border-radius: 10px; padding: 0.5rem 0.875rem;
+        font-size: 0.75rem; font-weight: 500; color: #1d1d1f;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04);
+        display: flex; align-items: center; gap: 0.5rem;
+    }
+    .marker-count .dot { width: 8px; height: 8px; border-radius: 50%; background: #0071e3; }
+    .loading-indicator {
+        position: absolute; top: 0.75rem; left: 50%; transform: translateX(-50%); z-index: 1000;
+        background: rgba(255,255,255,0.92); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+        border-radius: 10px; padding: 0.375rem 0.875rem;
+        font-size: 0.75rem; font-weight: 450; color: #86868b;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04);
+        display: none;
+    }
+
+    /* Mobile filter drawer */
+    @media (max-width: 1023px) {
+        #filter-sidebar {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 50;
+            background: rgba(0,0,0,0.4);
+            padding: 1rem;
+            overflow-y: auto;
+        }
+        #filter-sidebar.mobile-open {
+            display: block;
+        }
+        #filter-sidebar .filter-panel {
+            max-width: 22rem;
+            margin: 3rem auto 0;
+            position: relative;
+        }
+    }
+    .filter-fab-hidden { display: none !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex gap-6" dir="ltr">
+    <!-- Mobile filter toggle -->
+    <button id="filter-toggle" onclick="var sb=document.getElementById('filter-sidebar'); sb.classList.toggle('mobile-open'); this.classList.toggle('filter-fab-hidden', sb.classList.contains('mobile-open'));"
+            class="lg:hidden flex fixed bottom-6 right-6 z-40 apple-btn"
+            style="width: auto; padding: 0.75rem 1.25rem; border-radius: 999px; box-shadow: 0 4px 16px rgba(0,0,0,0.18); align-items: center; gap: 0.4rem;">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 4h18M3 12h12M3 20h6"/></svg>
+        Filters <span id="filter-count-badge" class="text-xs opacity-75 lg:hidden">({{ total }})</span>
+    </button>
+
+    <!-- Save search modal -->
+    <div id="save-search-modal" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.5); align-items:center; justify-content:center;">
+        <div style="background:#1c1c1e; border-radius:16px; padding:1.5rem; width:90%; max-width:360px; box-shadow:0 8px 32px rgba(0,0,0,0.4);">
+            <h3 id="save-modal-title" style="color:#f5f5f7; margin:0 0 1rem; font-size:1.1rem;">Save Search</h3>
+            <input id="save-search-name" type="text" placeholder="Search name" onkeydown="if(event.key==='Enter')confirmSaveSearch()" style="width:100%; padding:0.6rem 0.8rem; border-radius:8px; border:1px solid #3a3a3c; background:#2c2c2e; color:#f5f5f7; font-size:0.95rem; outline:none; box-sizing:border-box;">
+            <div style="display:flex; gap:0.5rem; margin-top:1rem; justify-content:flex-end;">
+                <button type="button" onclick="closeSaveModal()" style="padding:0.5rem 1rem; border-radius:8px; border:1px solid #3a3a3c; background:transparent; color:#f5f5f7; cursor:pointer;">Cancel</button>
+                <button id="save-modal-update-btn" type="button" onclick="confirmUpdateSearch()" style="display:none; padding:0.5rem 1rem; border-radius:8px; border:none; background:#0071e3; color:white; cursor:pointer; font-weight:500;">Update</button>
+                <button type="button" onclick="confirmSaveSearch()" style="padding:0.5rem 1rem; border-radius:8px; border:none; background:#34c759; color:white; cursor:pointer; font-weight:500;">Save New</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters sidebar -->
+    <aside id="filter-sidebar" class="w-72 shrink-0 hidden lg:block">
+        <form id="filter-form" hx-get="{% if show_hidden is defined and show_hidden %}/listings/hidden{% else %}/listings{% endif %}" hx-target="#list-container" hx-push-url="true"
+              class="filter-panel space-y-2.5">
+            <div class="flex items-center justify-between">
+                <h2 class="text-sm font-semibold" style="color: var(--apple-text)">Filters</h2>
+                <div class="flex items-center gap-2">
+                    <a href="{% if show_hidden is defined and show_hidden %}/listings/hidden{% else %}/listings{% endif %}" class="text-xs font-medium" style="color: var(--apple-blue)">Clear all</a>
+                    <button type="button" class="lg:hidden text-xs font-medium"
+                            style="color: var(--apple-secondary)"
+                            onclick="document.getElementById('filter-sidebar').classList.remove('mobile-open');document.getElementById('filter-toggle').classList.remove('filter-fab-hidden');">Close</button>
+                </div>
+            </div>
+
+            <!-- Deal type -->
+            <div>
+                <div class="filter-section-title">Deal Type</div>
+                <select name="deal_type" id="filter-deal-type" class="filter-input">
+                    <option value="" {% if not params.get('deal_type') %}selected{% endif %}>All</option>
+                    <option value="rent" {% if params.get('deal_type') == 'rent' %}selected{% endif %}>Rent</option>
+                    <option value="forsale" {% if params.get('deal_type') == 'forsale' %}selected{% endif %}>Buy</option>
+                </select>
+            </div>
+
+            <!-- Region -->
+            <div>
+                <div class="filter-section-title">Region</div>
+                <select id="filter-top-area" name="top_area_ids" multiple placeholder="Select regions...">
+                    {% for id, name in top_areas.items() %}
+                    <option value="{{ id }}" {% if id|string in (params.get('top_area_ids', '')).split(',') %}selected{% endif %}>
+                        {{ name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- City -->
+            <div>
+                <div class="filter-section-title">City</div>
+                <select id="filter-city" name="cities" multiple placeholder="Select cities...">
+                    {% for code, name in cities.items() %}
+                    <option value="{{ name }}" {% if name in (params.get('cities', '')).split(',') %}selected{% endif %}>
+                        {{ name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Neighborhood -->
+            <div>
+                <div class="filter-section-title">Neighborhood</div>
+                <select id="filter-neighborhood" name="neighborhoods" multiple placeholder="Select city first...">
+                    {% for hood in selected_neighborhoods %}
+                    <option value="{{ hood }}" selected>{{ hood }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Rooms -->
+            <div>
+                <div class="filter-section-title">Rooms</div>
+                <div class="flex items-center gap-2">
+                    <input type="number" name="rooms_min" id="filter-rooms-min" step="0.5" min="1" placeholder="Min"
+                           value="{{ params.get('rooms_min', '') }}" class="filter-input">
+                    <span style="color: #d2d2d7; font-size: 0.75rem;">--</span>
+                    <input type="number" name="rooms_max" id="filter-rooms-max" step="0.5" min="1" placeholder="Max"
+                           value="{{ params.get('rooms_max', '') }}" class="filter-input">
+                </div>
+            </div>
+
+            <!-- Price -->
+            <div>
+                <div class="filter-section-title">Price (ILS)</div>
+                <div class="flex items-center gap-2">
+                    <input type="number" name="price_min" id="filter-price-min" step="100" placeholder="Min"
+                           value="{{ params.get('price_min', '') }}" class="filter-input">
+                    <span style="color: #d2d2d7; font-size: 0.75rem;">--</span>
+                    <input type="number" name="price_max" id="filter-price-max" step="100" placeholder="Max"
+                           value="{{ params.get('price_max', '') }}" class="filter-input">
+                </div>
+            </div>
+
+            <!-- Size -->
+            <div>
+                <div class="filter-section-title">Size (sqm)</div>
+                <div class="flex items-center gap-2">
+                    <input type="number" name="sqm_min" id="filter-sqm-min" placeholder="Min"
+                           value="{{ params.get('sqm_min', '') }}" class="filter-input">
+                    <span style="color: #d2d2d7; font-size: 0.75rem;">--</span>
+                    <input type="number" name="sqm_max" id="filter-sqm-max" placeholder="Max"
+                           value="{{ params.get('sqm_max', '') }}" class="filter-input">
+                </div>
+            </div>
+
+            <!-- Amenities -->
+            <details class="filter-foldable">
+                <summary class="filter-section-title" style="cursor:pointer; list-style:none; display:flex; align-items:center; justify-content:space-between;">
+                    Amenities
+                    <svg class="fold-chevron" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+                </summary>
+                <div class="flex flex-wrap gap-1.5" style="margin-top:0.5rem;">
+                    {% for key, label in [('parking', 'Parking'), ('elevator', 'Elevator'), ('balcony', 'Balcony'), ('pets_allowed', 'Pets'), ('air_conditioning', 'A/C'), ('furnished', 'Furnished'), ('shelter', 'Shelter')] %}
+                    <span class="amenity-toggle">
+                        <input type="checkbox" name="{{ key }}" value="1" id="fl-{{ key }}"
+                               {% if params.get(key) %}checked{% endif %}>
+                        <label for="fl-{{ key }}">{{ label }}</label>
+                    </span>
+                    {% endfor %}
+                </div>
+            </details>
+
+            <!-- Sort (list view only) -->
+            <details class="filter-foldable" id="sort-section">
+                <summary class="filter-section-title" style="cursor:pointer; list-style:none; display:flex; align-items:center; justify-content:space-between;">
+                    Sort by
+                    <svg class="fold-chevron" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+                </summary>
+                <div class="flex flex-wrap gap-1.5" style="margin-top:0.5rem;">
+                    {% set sort_list = params.get('sort_by', []) if params.get('sort_by') is iterable and params.get('sort_by') is not string else [params.get('sort_by', '')] if params.get('sort_by') else [] %}
+                    {% for val, label in [('newest', 'Newest'), ('price_asc', 'Price ↑'), ('price_desc', 'Price ↓'), ('price_per_sqm_asc', '₪/sqm'), ('sqm_desc', 'Largest'), ('rooms_asc', 'Rooms ↑')] %}
+                    <span class="sort-pill">
+                        <input type="checkbox" name="sort_by" value="{{ val }}" id="sort-{{ val }}"
+                               {% if val in sort_list %}checked{% endif %}>
+                        <label for="sort-{{ val }}">{{ label }}</label>
+                    </span>
+                    {% endfor %}
+                </div>
+            </details>
+
+            <button type="submit" class="apple-btn" onclick="applyCurrentView()">Apply Filters</button>
+            <button type="button" onclick="saveSearch()" class="apple-btn" style="background: #34c759; margin-top: 0.5rem;">Save Search</button>
+        </form>
+    </aside>
+
+    <!-- Main content area -->
+    <div class="flex-1 min-w-0">
+        <!-- View toggle -->
+        <div class="flex items-center justify-between mb-4">
+            <div class="view-toggle">
+                <button id="btn-list" class="{{ 'active' if view_mode != 'map' }}" onclick="switchView('list')">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+                    List
+                </button>
+                <button id="btn-map" class="{{ 'active' if view_mode == 'map' }}" onclick="switchView('map')">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 6v16l7-4 8 4 7-4V2l-7 4-8-4-7 4zM8 2v16M16 6v16"/></svg>
+                    Map
+                </button>
+            </div>
+            {% if hidden_count is defined and hidden_count > 0 and not show_hidden is defined %}
+            <a href="/listings/hidden"
+               style="display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.375rem 0.75rem; background: #fff8e1; border-radius: 20px; border: 1px solid #ffe082; text-decoration: none; color: #f57f17; font-size: 0.75rem; font-weight: 500; transition: background 0.15s; white-space: nowrap;"
+               onmouseover="this.style.background='#fff3c4'" onmouseout="this.style.background='#fff8e1'">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
+                </svg>
+                {{ hidden_count }} hidden
+            </a>
+            {% elif show_hidden is defined and show_hidden %}
+            <span style="display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.375rem 0.75rem; background: #fff8e1; border-radius: 20px; border: 1px solid #ffe082; color: #f57f17; font-size: 0.75rem; font-weight: 500; white-space: nowrap;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
+                </svg>
+                {{ hidden_count }} hidden
+            </span>
+            {% endif %}
+        </div>
+
+        <!-- List view -->
+        <div id="list-container" class="{{ 'active' if view_mode != 'map' }}">
+            {% include "partials/listing_list.html" %}
+        </div>
+
+        <!-- Map view -->
+        <div id="map-container" class="{{ 'active' if view_mode == 'map' }}">
+            <div class="marker-count">
+                <span class="dot"></span>
+                <span id="marker-count-text">0 listings in view</span>
+            </div>
+            <div class="loading-indicator" id="loading">Loading...</div>
+            <div id="map"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    // -- TomSelect init --
+    let tsTopArea, tsCity, tsNeighborhood;
+    document.addEventListener('DOMContentLoaded', () => {
+        tsTopArea = new TomSelect('#filter-top-area', { plugins: ['remove_button'], placeholder: 'Select regions...' });
+        tsCity = new TomSelect('#filter-city', { plugins: ['remove_button'], placeholder: 'Select cities...' });
+        tsNeighborhood = new TomSelect('#filter-neighborhood', { plugins: ['remove_button'], placeholder: 'Select city first...' });
+
+        // Load neighborhoods when city selection changes
+        async function loadNeighborhoods() {
+            const selectedCities = tsCity.getValue();
+            tsNeighborhood.clear();
+            tsNeighborhood.clearOptions();
+            if (!selectedCities.length) {
+                tsNeighborhood.settings.placeholder = 'Select city first...';
+                tsNeighborhood.inputState();
+                return;
+            }
+            tsNeighborhood.settings.placeholder = 'Loading...';
+            tsNeighborhood.inputState();
+            try {
+                const resp = await fetch('/api/neighborhoods?cities=' + encodeURIComponent(selectedCities.join(',')));
+                const data = await resp.json();
+                data.forEach(h => {
+                    tsNeighborhood.addOption({ value: h.name, text: h.name });
+                });
+                tsNeighborhood.settings.placeholder = 'Select neighborhoods...';
+                tsNeighborhood.inputState();
+            } catch (e) {
+                console.error('Failed to load neighborhoods:', e);
+            }
+        }
+        tsCity.on('change', loadNeighborhoods);
+        // Load on init if cities are pre-selected
+        if (tsCity.getValue().length) loadNeighborhoods();
+        // Persist current listings URL for back-navigation from detail pages
+    {% if not show_hidden is defined or not show_hidden %}
+        sessionStorage.setItem('listingsUrl', window.location.pathname + window.location.search);
+    {% endif %}
+
+        // Close mobile filter panel when clicking outside the form
+        document.addEventListener('click', (e) => {
+            const sidebar = document.getElementById('filter-sidebar');
+            const toggle = document.getElementById('filter-toggle');
+            if (!sidebar.classList.contains('mobile-open')) return;
+            const panel = sidebar.querySelector('.filter-panel');
+            if (!panel.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) {
+                sidebar.classList.remove('mobile-open');
+                toggle.classList.remove('filter-fab-hidden');
+            }
+        });
+
+        // Auto-reload markers when filters change in map mode
+        const form = document.getElementById('filter-form');
+        form.addEventListener('change', () => {
+            if (currentView === 'map' && mapInstance) {
+                fitAfterLoad = true;
+                loadMarkers();
+            }
+        });
+    });
+
+    // Update stored URL after HTMX pushes new URL
+    document.body.addEventListener('htmx:pushedIntoHistory', () => {
+        {% if not show_hidden is defined or not show_hidden %}
+        sessionStorage.setItem('listingsUrl', window.location.pathname + window.location.search);
+        {% endif %}
+    });
+
+    // -- View toggle --
+    let currentView = '{{ view_mode }}' === 'map' ? 'map' : 'list';
+    let mapInstance = null;
+    let clusterGroup = null;
+    let fetchController = null;
+
+    window.switchView = function(view) {
+        currentView = view;
+        const listEl = document.getElementById('list-container');
+        const mapEl = document.getElementById('map-container');
+        const btnList = document.getElementById('btn-list');
+        const btnMap = document.getElementById('btn-map');
+        const sortSection = document.getElementById('sort-section');
+        const form = document.getElementById('filter-form');
+
+        if (view === 'map') {
+            listEl.classList.remove('active');
+            mapEl.classList.add('active');
+            btnList.classList.remove('active');
+            btnMap.classList.add('active');
+            sortSection.style.display = 'none';
+            // Disable HTMX on form for map mode
+            form.removeAttribute('hx-get');
+            form.removeAttribute('hx-target');
+            form.removeAttribute('hx-push-url');
+            htmx.process(form);
+            initMap();
+            // Update URL to reflect map view
+            const url = new URL(window.location);
+            url.searchParams.set('view', 'map');
+            history.replaceState(null, '', url);
+        } else {
+            mapEl.classList.remove('active');
+            listEl.classList.add('active');
+            btnMap.classList.remove('active');
+            btnList.classList.add('active');
+            sortSection.style.display = '';
+            // Re-enable HTMX on form for list mode
+            form.setAttribute('hx-get', '/listings');
+            form.setAttribute('hx-target', '#list-container');
+            form.setAttribute('hx-push-url', 'true');
+            htmx.process(form);
+            // Update URL to remove map view
+            const url = new URL(window.location);
+            url.searchParams.delete('view');
+            history.replaceState(null, '', url);
+        }
+    };
+
+    window.applyCurrentView = function() {
+        closeFilterDrawer();
+        if (currentView === 'map') {
+            loadMarkers();
+        }
+        // List mode: HTMX handles submit automatically
+    };
+
+    // -- Map logic --
+    let fitAfterLoad = false;
+
+    function initMap() {
+        if (mapInstance) {
+            mapInstance.invalidateSize();
+            fitAfterLoad = true;
+            loadMarkers();
+            return;
+        }
+
+        mapInstance = L.map('map').setView([32.07, 34.78], 12);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors',
+            maxZoom: 19,
+        }).addTo(mapInstance);
+
+        clusterGroup = L.markerClusterGroup({
+            maxClusterRadius: 60,
+            spiderfyOnMaxZoom: true,
+            showCoverageOnHover: false,
+            disableClusteringAtZoom: 17,
+        });
+        mapInstance.addLayer(clusterGroup);
+
+        let debounceTimer;
+        function debouncedLoad() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(loadMarkers, 300);
+        }
+        mapInstance.on('moveend', debouncedLoad);
+        mapInstance.on('zoomend', debouncedLoad);
+
+        fitAfterLoad = true;
+        loadMarkers();
+    }
+
+    function getMapFilterParams(skipBounds) {
+        const params = new URLSearchParams();
+        if (!skipBounds) {
+            const bounds = mapInstance.getBounds();
+            params.set('south', bounds.getSouth().toFixed(6));
+            params.set('west', bounds.getWest().toFixed(6));
+            params.set('north', bounds.getNorth().toFixed(6));
+            params.set('east', bounds.getEast().toFixed(6));
+        }
+
+        const dealType = document.getElementById('filter-deal-type').value;
+        if (dealType) params.set('deal_type', dealType);
+
+        const topAreaIds = tsTopArea ? tsTopArea.getValue() : [];
+        if (topAreaIds.length) params.set('top_area_ids', topAreaIds.join(','));
+
+        const cityVals = tsCity ? tsCity.getValue() : [];
+        if (cityVals.length) params.set('cities', cityVals.join(','));
+
+        const areaIds = tsNeighborhood ? tsNeighborhood.getValue() : [];
+        if (areaIds.length) params.set('neighborhoods', areaIds.join(','));
+
+        const fields = [
+            ['rooms_min', 'filter-rooms-min'], ['rooms_max', 'filter-rooms-max'],
+            ['price_min', 'filter-price-min'], ['price_max', 'filter-price-max'],
+            ['sqm_min', 'filter-sqm-min'], ['sqm_max', 'filter-sqm-max'],
+        ];
+        fields.forEach(([param, id]) => {
+            const val = document.getElementById(id).value;
+            if (val) params.set(param, val);
+        });
+
+        const amenities = ['parking', 'elevator', 'balcony', 'pets_allowed', 'air_conditioning', 'furnished', 'shelter'];
+        amenities.forEach(a => {
+            if (document.getElementById('fl-' + a).checked) params.set(a, '1');
+        });
+
+        return params;
+    }
+
+    async function loadMarkers() {
+        if (!mapInstance) return;
+        const shouldFit = fitAfterLoad;
+        fitAfterLoad = false;
+        const params = getMapFilterParams(shouldFit);
+
+        if (fetchController) fetchController.abort();
+        fetchController = new AbortController();
+
+        const loadingEl = document.getElementById('loading');
+        const countEl = document.getElementById('marker-count-text');
+        loadingEl.style.display = 'block';
+
+        try {
+            const resp = await fetch('/api/markers?' + params, {
+                signal: fetchController.signal,
+            });
+            const data = await resp.json();
+
+            clusterGroup.clearLayers();
+            const newMarkers = [];
+            for (const m of data.markers) {
+                const priceStr = m.price ? m.price.toLocaleString() + ' &#8362;' : '';
+                const roomsStr = m.rooms ? m.rooms + ' rooms' : '';
+                const sqmStr = m.sqm ? m.sqm + ' sqm' : '';
+                const details = [roomsStr, sqmStr].filter(Boolean).join(' | ');
+
+                const popup = '<div style="min-width:180px">' +
+                    '<strong>' + m.address + '</strong><br>' +
+                    (priceStr ? '<span style="color:#2563eb;font-weight:600">' + priceStr + '</span><br>' : '') +
+                    (details ? '<span style="color:#6b7280;font-size:0.8rem">' + details + '</span><br>' : '') +
+                    '<a href="/listings/' + m.yad2_id + '" style="color:#2563eb;font-size:0.8rem">View details &rarr;</a>' +
+                    '</div>';
+
+                newMarkers.push(L.marker([m.lat, m.lng]).bindPopup(popup));
+            }
+
+            clusterGroup.addLayers(newMarkers);
+            countEl.textContent = data.total + ' listing' + (data.total !== 1 ? 's' : '') + ' in view';
+
+            // Fit map to markers when triggered by filter change
+            if (shouldFit && newMarkers.length > 0) {
+                const group = L.featureGroup(newMarkers);
+                mapInstance.fitBounds(group.getBounds().pad(0.1));
+            }
+        } catch (e) {
+            if (e.name !== 'AbortError') console.error('Failed to load markers:', e);
+        } finally {
+            loadingEl.style.display = 'none';
+        }
+    }
+
+    // -- Save search --
+    // Track active saved search from URL params
+    let activeSearchId = null;
+    let activeSearchName = null;
+    (function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        activeSearchId = urlParams.get('search_id');
+        activeSearchName = urlParams.get('search_name');
+    })();
+
+    function collectFilters() {
+        const form = document.getElementById('filter-form');
+        const formData = new FormData(form);
+        const filters = {};
+        for (const [key, value] of formData.entries()) {
+            if (!value) continue;
+            if (key === 'top_area_ids' || key === 'cities' || key === 'neighborhoods' || key === 'sort_by') {
+                if (!filters[key]) filters[key] = [];
+                filters[key].push(value);
+            } else if (['parking','elevator','balcony','pets_allowed','air_conditioning','furnished','shelter'].includes(key)) {
+                filters[key] = true;
+            } else {
+                filters[key] = value;
+            }
+        }
+        return filters;
+    }
+
+    window.saveSearch = function() {
+        const modal = document.getElementById('save-search-modal');
+        const input = document.getElementById('save-search-name');
+        const updateBtn = document.getElementById('save-modal-update-btn');
+        const title = document.getElementById('save-modal-title');
+
+        if (activeSearchId && activeSearchName) {
+            title.textContent = 'Update or Save Search';
+            updateBtn.textContent = 'Update "' + activeSearchName + '"';
+            updateBtn.style.display = '';
+            input.placeholder = 'Or enter new name...';
+            input.value = '';
+        } else {
+            title.textContent = 'Save Search';
+            updateBtn.style.display = 'none';
+            input.placeholder = 'Search name';
+            input.value = '';
+        }
+        modal.style.display = 'flex';
+        setTimeout(() => input.focus(), 50);
+    };
+
+    window.closeSaveModal = function() {
+        document.getElementById('save-search-modal').style.display = 'none';
+    };
+
+    window.confirmUpdateSearch = async function() {
+        if (!activeSearchId) return;
+        closeSaveModal();
+        const filters = collectFilters();
+        try {
+            const res = await fetch('/api/searches/' + activeSearchId, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({filters})
+            });
+            const data = await res.json();
+            if (data.status === 'updated') {
+                closeFilterDrawer();
+                if (currentView === 'list') {
+                    htmx.trigger(document.getElementById('filter-form'), 'submit');
+                } else {
+                    loadMarkers();
+                }
+            }
+        } catch (e) {
+            console.error('Failed to update search', e);
+        }
+    };
+
+    window.confirmSaveSearch = async function() {
+        const name = document.getElementById('save-search-name').value.trim();
+        if (!name) return;
+        closeSaveModal();
+        const filters = collectFilters();
+
+        try {
+            const res = await fetch('/api/searches', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name, filters})
+            });
+            const data = await res.json();
+            if (data.status === 'saved' || data.status === 'updated') {
+                activeSearchId = data.id;
+                activeSearchName = data.name;
+                closeFilterDrawer();
+                if (currentView === 'list') {
+                    htmx.trigger(document.getElementById('filter-form'), 'submit');
+                } else {
+                    loadMarkers();
+                }
+            }
+        } catch (e) {
+            console.error('Failed to save search', e);
+        }
+    };
+
+    window.closeFilterDrawer = function() {
+        document.getElementById('filter-sidebar').classList.remove('mobile-open');
+        document.getElementById('filter-toggle').classList.remove('filter-fab-hidden');
+    };
+
+    // Auto-init map if starting in map view
+    if (currentView === 'map') {
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(initMap, 50);
+        });
+    }
+})();
+</script>
+{% endblock %}

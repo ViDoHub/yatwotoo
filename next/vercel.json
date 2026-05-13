@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/poll",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/enrich",
+      "schedule": "5,35 * * * *"
+    },
+    {
+      "path": "/api/cron/cleanup",
+      "schedule": "0 3 * * *"
+    }
+  ]
+}

@@ -1,0 +1,190 @@
+<!-- OOB update for filter count badge -->
+<span id="filter-count-badge" hx-swap-oob="true" class="text-xs opacity-75 lg:hidden">({{ total }})</span>
+
+<!-- Results header -->
+<div class="flex items-center justify-between mb-5">
+    <div>
+        <span class="text-sm font-medium" style="color: var(--apple-text, #1d1d1f)">{{ total }} listing{{ 's' if total != 1 else '' }}</span>
+    </div>
+    <span class="text-xs" style="color: #86868b">Page {{ page }} of {{ total_pages }}</span>
+</div>
+
+{% if listings %}
+<div class="space-y-3">
+    {% for listing in listings %}
+    <div id="listing-card-{{ listing.yad2_id }}" class="block group"
+       style="background: white; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.03); padding: 1rem; transition: box-shadow 0.2s, transform 0.15s; text-decoration: none; color: inherit;">
+        <div class="flex gap-4">
+            <a href="/listings/{{ listing.yad2_id }}" style="flex-shrink: 0; width: 140px; text-decoration: none; color: inherit;">
+                {% if listing.images %}
+                <img src="{{ listing.images[0] }}" alt=""
+                     style="width: 140px; height: 100px; object-fit: cover; border-radius: 12px; background: #f5f5f7;">
+                {% else %}
+                <div style="width: 140px; height: 100px; border-radius: 12px; background: #f5f5f7; display: flex; align-items: center; justify-content: center;">
+                    <svg class="w-7 h-7" style="color: #d2d2d7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                              d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+                        <polyline points="9 22 9 12 15 12 15 22"/>
+                    </svg>
+                </div>
+                {% endif %}
+                {% if listing.date_added %}
+                <div style="font-size: 0.6875rem; color: #aeaeb2; margin-top: 0.375rem; text-align: center;">{{ listing.date_added[:10].split('-') | reverse | join('/') }}</div>
+                {% elif listing.first_seen_at and listing.first_seen_at.year > 1970 %}
+                <div style="font-size: 0.6875rem; color: #aeaeb2; margin-top: 0.375rem; text-align: center;">{{ listing.first_seen_at.strftime('%d/%m/%Y') }}</div>
+                {% endif %}
+            </a>
+
+            <a href="/listings/{{ listing.yad2_id }}" class="flex-1 min-w-0" style="text-decoration: none; color: inherit;">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2">
+                            <h3 class="font-medium truncate" style="font-size: 0.9375rem; color: #1d1d1f;">
+                                {{ listing.address.street }}{% if listing.address.house_number %} {{ listing.address.house_number }}{% endif %}{% if listing.address.city %}, {{ listing.address.city }}{% endif %}
+                            </h3>
+                            {% if listing.deal_type == 'rent' %}
+                            <span style="font-size: 0.625rem; font-weight: 600; background: #e8f4fd; color: #0071e3; padding: 2px 7px; border-radius: 20px; white-space: nowrap;">Rent</span>
+                            {% elif listing.deal_type == 'forsale' %}
+                            <span style="font-size: 0.625rem; font-weight: 600; background: #e6f9e6; color: #1a7a1a; padding: 2px 7px; border-radius: 20px; white-space: nowrap;">ForSale</span>
+                            {% endif %}
+                        </div>
+                        {% if listing.address.neighborhood %}
+                        <p style="font-size: 0.8125rem; color: #86868b; margin-top: 2px;">{{ listing.address.neighborhood }}</p>
+                        {% endif %}
+                    </div>
+                    {% if listing.price %}
+                    <div class="text-right shrink-0">
+                        <div style="font-size: 1.125rem; font-weight: 600; color: #0071e3;">{{ "{:,}".format(listing.price) }} ₪</div>
+                        {% if listing.deal_type == 'rent' %}
+                        <div style="font-size: 0.6875rem; color: #86868b;">/month</div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Property stats -->
+                <div class="flex items-center gap-4 mt-2.5">
+                    {% if listing.rooms %}
+                    <span style="font-size: 0.8125rem; color: #86868b;">{{ listing.rooms }} rooms</span>
+                    {% endif %}
+                    {% if listing.sqm %}
+                    <span style="font-size: 0.8125rem; color: #86868b;">{{ listing.sqm }} sqm</span>
+                    {% endif %}
+                    {% if listing.floor is not none %}
+                    <span style="font-size: 0.8125rem; color: #86868b;">Floor {{ listing.floor }}</span>
+                    {% endif %}
+                    {% if listing.price_per_sqm %}
+                    <span style="font-size: 0.8125rem; color: #86868b;">{{ "%.0f"|format(listing.price_per_sqm) }} ₪/sqm</span>
+                    {% endif %}
+                </div>
+
+                {% if listing.description %}
+                <p style="font-size: 0.75rem; color: #86868b; margin-top: 0.375rem; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-align: right; direction: rtl;">{{ listing.description }}</p>
+                {% endif %}
+
+                <!-- Amenity badges -->
+                {% if listing.amenities %}
+                <div class="flex flex-wrap gap-1.5 mt-2.5">
+                    {% if listing.amenities.parking %}<span style="font-size: 0.6875rem; background: #f5f5f7; color: #86868b; padding: 3px 8px; border-radius: 20px;">Parking{% if listing.parking_spots and listing.parking_spots > 1 %} ({{ listing.parking_spots }}){% endif %}</span>{% endif %}
+                    {% if listing.amenities.elevator %}<span style="font-size: 0.6875rem; background: #f5f5f7; color: #86868b; padding: 3px 8px; border-radius: 20px;">Elevator</span>{% endif %}
+                    {% if listing.amenities.balcony %}<span style="font-size: 0.6875rem; background: #f5f5f7; color: #86868b; padding: 3px 8px; border-radius: 20px;">Balcony</span>{% endif %}
+                    {% if listing.amenities.air_conditioning %}<span style="font-size: 0.6875rem; background: #f5f5f7; color: #86868b; padding: 3px 8px; border-radius: 20px;">A/C</span>{% endif %}
+                    {% if listing.amenities.pets_allowed %}<span style="font-size: 0.6875rem; background: #f5f5f7; color: #86868b; padding: 3px 8px; border-radius: 20px;">Pets OK</span>{% endif %}
+                    {% if listing.amenities.shelter %}<span style="font-size: 0.6875rem; background: #f5f5f7; color: #86868b; padding: 3px 8px; border-radius: 20px;">Shelter</span>{% endif %}
+                    {% if listing.amenities.furnished %}<span style="font-size: 0.6875rem; background: #f5f5f7; color: #86868b; padding: 3px 8px; border-radius: 20px;">Furnished</span>{% endif %}
+                    {% if listing.amenities.renovated %}<span style="font-size: 0.6875rem; background: #f5f5f7; color: #86868b; padding: 3px 8px; border-radius: 20px;">Renovated</span>{% endif %}
+                    {% if listing.amenities.storage %}<span style="font-size: 0.6875rem; background: #f5f5f7; color: #86868b; padding: 3px 8px; border-radius: 20px;">Storage</span>{% endif %}
+                    {% if listing.amenities.long_term %}<span style="font-size: 0.6875rem; background: #f5f5f7; color: #86868b; padding: 3px 8px; border-radius: 20px;">Long Term</span>{% endif %}
+                    {% if listing.amenities.for_partners %}<span style="font-size: 0.6875rem; background: #f5f5f7; color: #86868b; padding: 3px 8px; border-radius: 20px;">Roommates OK</span>{% endif %}
+                </div>
+                {% endif %}
+            </a>
+
+            <!-- Hide/Unhide button -->
+            <div style="flex-shrink: 0; display: flex; align-items: flex-start; padding-top: 0.25rem;">
+                {% if show_hidden is defined and show_hidden %}
+                <button hx-post="/api/listings/{{ listing.yad2_id }}/unhide"
+                        hx-target="#listing-card-{{ listing.yad2_id }}"
+                        hx-swap="outerHTML swap:0.2s"
+                        title="Unhide listing"
+                        onclick="event.stopPropagation()"
+                        style="background: none; border: none; cursor: pointer; padding: 0.375rem; border-radius: 8px; color: #34c759; transition: background 0.15s;"
+                        onmouseover="this.style.background='#f0faf0'" onmouseout="this.style.background='none'">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                    </svg>
+                </button>
+                {% else %}
+                <button hx-post="/api/listings/{{ listing.yad2_id }}/hide"
+                        hx-target="#listing-card-{{ listing.yad2_id }}"
+                        hx-swap="outerHTML swap:0.2s"
+                        title="Hide listing"
+                        onclick="event.stopPropagation()"
+                        style="background: none; border: none; cursor: pointer; padding: 0.375rem; border-radius: 8px; color: #aeaeb2; transition: background 0.15s, color 0.15s;"
+                        onmouseover="this.style.background='#fff0f0'; this.style.color='#ff3b30'" onmouseout="this.style.background='none'; this.style.color='#aeaeb2'">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
+                    </svg>
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Pagination -->
+{% if total_pages > 1 %}
+{% set qs = '&' + pagination_qs if pagination_qs else '' %}
+<nav class="flex items-center justify-center gap-1 mt-8">
+    {% if page > 1 %}
+    <a href="?page={{ page - 1 }}{{ qs }}"
+       style="padding: 0.5rem 0.875rem; font-size: 0.8125rem; border-radius: 8px; background: white; color: #1d1d1f; text-decoration: none; box-shadow: 0 1px 4px rgba(0,0,0,0.06);">
+        &larr; Previous
+    </a>
+    {% endif %}
+
+    {% for p in range(1, total_pages + 1) %}
+        {% if p == page %}
+        <span style="padding: 0.5rem 0.875rem; font-size: 0.8125rem; border-radius: 8px; background: #0071e3; color: white; font-weight: 500;">{{ p }}</span>
+        {% elif p <= 3 or p >= total_pages - 2 or (p >= page - 1 and p <= page + 1) %}
+        <a href="?page={{ p }}{{ qs }}"
+           style="padding: 0.5rem 0.875rem; font-size: 0.8125rem; border-radius: 8px; background: white; color: #1d1d1f; text-decoration: none; box-shadow: 0 1px 4px rgba(0,0,0,0.06);">{{ p }}</a>
+        {% elif p == 4 or p == total_pages - 3 %}
+        <span style="padding: 0.5rem; font-size: 0.8125rem; color: #86868b;">...</span>
+        {% endif %}
+    {% endfor %}
+
+    {% if page < total_pages %}
+    <a href="?page={{ page + 1 }}{{ qs }}"
+       style="padding: 0.5rem 0.875rem; font-size: 0.8125rem; border-radius: 8px; background: white; color: #1d1d1f; text-decoration: none; box-shadow: 0 1px 4px rgba(0,0,0,0.06);">
+        Next &rarr;
+    </a>
+    {% endif %}
+</nav>
+{% endif %}
+
+{% else %}
+<!-- Empty state -->
+<div style="background: white; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.03); padding: 4rem 2rem; text-align: center;">
+    <div style="display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; background: #f5f5f7; border-radius: 50%; margin-bottom: 1rem;">
+        <svg class="w-7 h-7" style="color: #d2d2d7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                  d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+            <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+    </div>
+    <h3 style="font-size: 1.0625rem; font-weight: 600; color: #1d1d1f; margin-bottom: 0.25rem;">No listings yet</h3>
+    <p style="font-size: 0.8125rem; color: #86868b; margin-bottom: 1.5rem;">Listings will appear after the first scrape runs.</p>
+    <button hx-post="/api/scrape" hx-swap="outerHTML" hx-target="closest div"
+            hx-indicator="#scrape-spinner"
+            style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.625rem 1.25rem; background: #0071e3; color: white; font-size: 0.8125rem; font-weight: 500; border-radius: 10px; border: none; cursor: pointer;">
+        <svg id="scrape-spinner" class="w-4 h-4 animate-spin htmx-indicator" viewBox="0 0 24 24" fill="none">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"/>
+        </svg>
+        Fetch Listings Now
+    </button>
+</div>
+{% endif %}
