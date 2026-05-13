@@ -7,11 +7,14 @@ import json
 import requests
 from pymongo import MongoClient
 
-SUPABASE_URL = "https://lpalpyekzrohcjnlpbto.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxwYWxweWVrenJvaGNqbmxwYnRvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODY2OTEwNywiZXhwIjoyMDk0MjQ1MTA3fQ.2GxKhC0vxAJJBJat2BbOHpeeOW8-7awZIN9UovxBE8E"
+SUPABASE_URL = os.environ.get("SUPABASE_URL") or os.environ.get("NEXT_PUBLIC_SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
 
-MONGO_URL = "mongodb://localhost:27017"
-MONGO_DB = "yad2search"
+if not SUPABASE_URL or not SUPABASE_KEY:
+    sys.exit("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables")
+
+MONGO_URL = os.environ.get("MONGO_URI", "mongodb://localhost:27017")
+MONGO_DB = os.environ.get("MONGO_DB", "yad2search")
 
 BATCH_SIZE = 500
 
