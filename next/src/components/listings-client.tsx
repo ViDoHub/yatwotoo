@@ -44,63 +44,65 @@ export function ListingsClient({ hiddenMode = false }: { hiddenMode?: boolean })
   const [data, setData] = useState<ListingsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-  const [initialized, setInitialized] = useState(false);
 
   // Storage key per mode
   const storageKey = hiddenMode ? "hidden_filters" : "listings_filters";
 
-  // Filters — initialize from URL params only (sessionStorage restored in useEffect)
-  const [dealType, setDealType] = useState(searchParams.get("deal_type") || "");
+  // Restore filters synchronously from sessionStorage or URL params
+  const stored = useRef<Record<string, unknown>>({});
+  const hasUrlParams = searchParams.toString().length > 0;
+  if (!stored.current._loaded) {
+    stored.current._loaded = true;
+    if (!hasUrlParams) {
+      try {
+        Object.assign(stored.current, JSON.parse(sessionStorage.getItem(storageKey) || "{}"));
+      } catch { /* ignore */ }
+    }
+  }
+  const s = stored.current;
+
+  const [dealType, setDealType] = useState(
+    searchParams.get("deal_type") || (s.dealType as string) || ""
+  );
   const [topAreaIds, setTopAreaIds] = useState<string[]>(
-    searchParams.get("top_area_ids")?.split(",").filter(Boolean) || []
+    searchParams.get("top_area_ids")?.split(",").filter(Boolean) || (s.topAreaIds as string[]) || []
   );
   const [cities, setCities] = useState<string[]>(
-    searchParams.get("cities")?.split(",").filter(Boolean) || []
+    searchParams.get("cities")?.split(",").filter(Boolean) || (s.cities as string[]) || []
   );
   const [neighborhoods, setNeighborhoods] = useState<string[]>(
-    searchParams.get("neighborhoods")?.split(",").filter(Boolean) || []
+    searchParams.get("neighborhoods")?.split(",").filter(Boolean) || (s.neighborhoods as string[]) || []
   );
-  const [roomsMin, setRoomsMin] = useState(searchParams.get("rooms_min") || "");
-  const [roomsMax, setRoomsMax] = useState(searchParams.get("rooms_max") || "");
-  const [priceMin, setPriceMin] = useState(searchParams.get("price_min") || "");
-  const [priceMax, setPriceMax] = useState(searchParams.get("price_max") || "");
-  const [sqmMin, setSqmMin] = useState(searchParams.get("sqm_min") || "");
-  const [sqmMax, setSqmMax] = useState(searchParams.get("sqm_max") || "");
+  const [roomsMin, setRoomsMin] = useState(
+    searchParams.get("rooms_min") || (s.roomsMin as string) || ""
+  );
+  const [roomsMax, setRoomsMax] = useState(
+    searchParams.get("rooms_max") || (s.roomsMax as string) || ""
+  );
+  const [priceMin, setPriceMin] = useState(
+    searchParams.get("price_min") || (s.priceMin as string) || ""
+  );
+  const [priceMax, setPriceMax] = useState(
+    searchParams.get("price_max") || (s.priceMax as string) || ""
+  );
+  const [sqmMin, setSqmMin] = useState(
+    searchParams.get("sqm_min") || (s.sqmMin as string) || ""
+  );
+  const [sqmMax, setSqmMax] = useState(
+    searchParams.get("sqm_max") || (s.sqmMax as string) || ""
+  );
   const [amenities, setAmenities] = useState<string[]>(
-    searchParams.get("amenities")?.split(",").filter(Boolean) || []
+    searchParams.get("amenities")?.split(",").filter(Boolean) || (s.amenities as string[]) || []
   );
   const [sortBy, setSortBy] = useState<string[]>(
-    searchParams.get("sort_by")?.split(",").filter(Boolean) || []
+    searchParams.get("sort_by")?.split(",").filter(Boolean) || (s.sortBy as string[]) || []
   );
   const showHidden = hiddenMode;
   const [hiddenCount, setHiddenCount] = useState(0);
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
-  const [page, setPage] = useState(Number(searchParams.get("page") || 1));
-
-  // Restore filters from sessionStorage on mount (only if URL has no filter params)
-  useEffect(() => {
-    if (searchParams.toString()) {
-      setInitialized(true);
-      return;
-    }
-    try {
-      const stored = JSON.parse(sessionStorage.getItem(storageKey) || "{}");
-      if (stored.dealType) setDealType(stored.dealType);
-      if (stored.topAreaIds?.length) setTopAreaIds(stored.topAreaIds);
-      if (stored.cities?.length) setCities(stored.cities);
-      if (stored.neighborhoods?.length) setNeighborhoods(stored.neighborhoods);
-      if (stored.roomsMin) setRoomsMin(stored.roomsMin);
-      if (stored.roomsMax) setRoomsMax(stored.roomsMax);
-      if (stored.priceMin) setPriceMin(stored.priceMin);
-      if (stored.priceMax) setPriceMax(stored.priceMax);
-      if (stored.sqmMin) setSqmMin(stored.sqmMin);
-      if (stored.sqmMax) setSqmMax(stored.sqmMax);
-      if (stored.amenities?.length) setAmenities(stored.amenities);
-      if (stored.sortBy?.length) setSortBy(stored.sortBy);
-      if (stored.page) setPage(stored.page);
-    } catch { /* ignore */ }
-    setInitialized(true);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const [page, setPage] = useState(
+    Number(searchParams.get("page") || (s.page as number) || 1)
+  );
 
   // City & neighborhood options
   const [cityOptions, setCityOptions] = useState<string[]>([]);
@@ -164,18 +166,17 @@ export function ListingsClient({ hiddenMode = false }: { hiddenMode?: boolean })
   }, [dealType, cities, topAreaIds, neighborhoods, roomsMin, roomsMax, priceMin, priceMax, sqmMin, sqmMax, amenities, sortBy, showHidden, page]);
 
   useEffect(() => {
-    if (initialized) fetchListings();
-  }, [fetchListings, initialized]);
+    fetchListings();
+  }, [fetchListings]);
 
-  // Persist filters to sessionStorage (only after initialized)
+  // Persist filters to sessionStorage
   useEffect(() => {
-    if (!initialized) return;
     sessionStorage.setItem(storageKey, JSON.stringify({
       dealType, topAreaIds, cities, neighborhoods,
       roomsMin, roomsMax, priceMin, priceMax, sqmMin, sqmMax,
       amenities, sortBy, page,
     }));
-  }, [initialized, dealType, topAreaIds, cities, neighborhoods, roomsMin, roomsMax, priceMin, priceMax, sqmMin, sqmMax, amenities, sortBy, page, storageKey]);
+  }, [dealType, topAreaIds, cities, neighborhoods, roomsMin, roomsMax, priceMin, priceMax, sqmMin, sqmMax, amenities, sortBy, page, storageKey]);
 
   function applyFilters() {
     setPage(1);

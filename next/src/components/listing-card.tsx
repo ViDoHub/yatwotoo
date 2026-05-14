@@ -9,19 +9,28 @@ interface ListingCardProps {
   onUnhide?: (yad2Id: string) => void;
 }
 
-const AMENITY_DISPLAY: Record<string, string> = {
-  parking: "Parking",
-  elevator: "Elevator",
-  balcony: "Balcony",
-  air_conditioning: "A/C",
-  pets_allowed: "Pets OK",
-  shelter: "Shelter",
-  furnished: "Furnished",
-  renovated: "Renovated",
-  storage: "Storage",
-  long_term: "Long Term",
-  for_partners: "Roommates OK",
-};
+const AMENITY_GROUPS: { label: string; color: string; items: Record<string, string> }[] = [
+  {
+    label: "Comfort",
+    color: "bg-[#eef6ff] text-[#3b82f6]",
+    items: { air_conditioning: "A/C", furnished: "Furnished", renovated: "Renovated", balcony: "Balcony" },
+  },
+  {
+    label: "Access",
+    color: "bg-[#f0fdf4] text-[#22c55e]",
+    items: { elevator: "Elevator", parking: "Parking", accessible: "Accessible" },
+  },
+  {
+    label: "Safety",
+    color: "bg-[#fef9ee] text-[#f59e0b]",
+    items: { shelter: "Shelter", bars: "Bars" },
+  },
+  {
+    label: "Other",
+    color: "bg-[#f5f5f7] text-[#86868b]",
+    items: { pets_allowed: "Pets OK", storage: "Storage", long_term: "Long Term", for_partners: "Roommates OK" },
+  },
+];
 
 export function ListingCard({ listing, onHide, onUnhide }: ListingCardProps) {
   const imageUrl = listing.images?.[0] || null;
@@ -31,16 +40,40 @@ export function ListingCard({ listing, onHide, onUnhide }: ListingCardProps) {
     ? new Date(listing.first_seen_at).toLocaleDateString("en-GB")
     : null;
 
-  // Collect amenities that are true
-  const activeAmenities = Object.entries(AMENITY_DISPLAY).filter(
-    ([key]) => (listing as Record<string, unknown>)[key]
-  );
+  const activeAmenityGroups = AMENITY_GROUPS.map((group) => ({
+    ...group,
+    active: Object.entries(group.items).filter(
+      ([key]) => (listing as Record<string, unknown>)[key]
+    ),
+  })).filter((group) => group.active.length > 0);
+
+  const isRent = listing.deal_type === "rent";
+  const isForSale = listing.deal_type === "forsale";
 
   return (
-    <div className="group bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.04),0_0_0_1px_rgba(0,0,0,0.03)] p-4 transition-all hover:shadow-[0_4px_20px_rgba(0,0,0,0.08)]">
-      <div className="flex gap-4">
-        {/* Image */}
-        <Link href={`/listings/${listing.yad2_id}`} className="shrink-0 w-[140px]">
+    <div className="group bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.04),0_0_0_1px_rgba(0,0,0,0.03)] p-3 transition-all hover:shadow-[0_4px_20px_rgba(0,0,0,0.08)]">
+      {/* Desktop: 3-zone horizontal | Mobile: stacked */}
+      <div className="flex gap-3 sm:gap-4">
+
+        {/* === LEFT ZONE: Price + Image + Date === */}
+        <Link
+          href={`/listings/${listing.yad2_id}`}
+          className="shrink-0 w-[140px] flex flex-col items-center no-underline text-inherit"
+        >
+          {/* Price */}
+          {listing.price != null ? (
+            <div className="text-center mb-1">
+              <div className="text-base sm:text-lg font-semibold text-[#0071e3] leading-tight">
+                {listing.price.toLocaleString()} ₪{isRent && <span className="text-[0.625rem] font-normal text-[#86868b]"> /month</span>}
+              </div>
+            </div>
+          ) : (
+            <div className="text-center mb-1">
+              <div className="text-xs text-[#aeaeb2]">No price</div>
+            </div>
+          )}
+
+          {/* Image */}
           {imageUrl ? (
             <img
               src={imageUrl}
@@ -55,84 +88,86 @@ export function ListingCard({ listing, onHide, onUnhide }: ListingCardProps) {
               </svg>
             </div>
           )}
+
+          {/* Published date */}
           {dateStr && (
-            <div className="text-[0.6875rem] text-[#aeaeb2] mt-1.5 text-center">{dateStr}</div>
+            <div className="text-[0.6875rem] text-[#aeaeb2] mt-1 text-center">{dateStr}</div>
           )}
         </Link>
 
-        {/* Content */}
-        <Link href={`/listings/${listing.yad2_id}`} className="flex-1 min-w-0 no-underline text-inherit">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <h3 className="font-medium truncate text-[0.9375rem] text-[#1d1d1f]">
-                  {listing.street}
-                  {listing.house_number ? ` ${listing.house_number}` : ""}
-                  {listing.city ? `, ${listing.city}` : ""}
-                </h3>
-                {listing.deal_type === "rent" && (
-                  <span className="text-[0.625rem] font-semibold bg-[#e8f4fd] text-[#0071e3] px-[7px] py-[2px] rounded-full whitespace-nowrap">Rent</span>
-                )}
-                {listing.deal_type === "forsale" && (
-                  <span className="text-[0.625rem] font-semibold bg-[#e6f9e6] text-[#1a7a1a] px-[7px] py-[2px] rounded-full whitespace-nowrap">ForSale</span>
-                )}
-              </div>
-              {listing.neighborhood && (
-                <p className="text-[0.8125rem] text-[#86868b] mt-0.5">{listing.neighborhood}</p>
-              )}
-            </div>
-            {listing.price != null && (
-              <div className="text-right shrink-0">
-                <div className="text-lg font-semibold text-[#0071e3]">
-                  {listing.price.toLocaleString()} ₪
-                </div>
-                {listing.deal_type === "rent" && (
-                  <div className="text-[0.6875rem] text-[#86868b]">/month</div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Stats */}
-          <div className="flex items-center gap-4 mt-2.5">
-            {listing.rooms != null && (
-              <span className="text-[0.8125rem] text-[#86868b]">{listing.rooms} rooms</span>
-            )}
-            {listing.sqm != null && (
-              <span className="text-[0.8125rem] text-[#86868b]">{listing.sqm} sqm</span>
-            )}
-            {listing.floor != null && (
-              <span className="text-[0.8125rem] text-[#86868b]">Floor {listing.floor}</span>
-            )}
-            {listing.price_per_sqm != null && (
-              <span className="text-[0.8125rem] text-[#86868b]">{Math.round(listing.price_per_sqm)} ₪/sqm</span>
-            )}
-          </div>
+        {/* === MIDDLE ZONE: Address + Description === */}
+        <Link
+          href={`/listings/${listing.yad2_id}`}
+          className="flex-1 min-w-0 no-underline text-inherit flex flex-col"
+        >
+          {/* Address */}
+          <h3 className="font-medium text-[0.9375rem] text-[#1d1d1f] leading-snug text-right" dir="rtl">
+            {listing.city}
+            {listing.street ? `, ${listing.street}` : ""}
+            {listing.house_number ? ` ${listing.house_number}` : ""}
+          </h3>
+          {listing.neighborhood && (
+            <p className="text-[0.8125rem] text-[#86868b] mt-0.5 text-right font-semibold" dir="rtl">{listing.neighborhood}</p>
+          )}
 
           {/* Description (RTL) */}
           {listing.description && (
-            <p className="text-xs text-[#86868b] mt-1.5 leading-relaxed line-clamp-2 text-right" dir="rtl">
+            <p className="text-xs text-[#86868b] mt-2 leading-relaxed line-clamp-3 text-right flex-1" dir="rtl">
               {listing.description}
             </p>
           )}
-
-          {/* Amenity badges */}
-          {activeAmenities.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mt-2.5">
-              {activeAmenities.map(([key, label]) => (
-                <span key={key} className="text-[0.6875rem] bg-[#f5f5f7] text-[#86868b] px-2 py-[3px] rounded-full">
-                  {label}
-                  {key === "parking" && listing.parking_spots && listing.parking_spots > 1
-                    ? ` (${listing.parking_spots})`
-                    : ""}
-                </span>
-              ))}
-            </div>
-          )}
         </Link>
 
-        {/* Hide/Unhide button */}
-        <div className="shrink-0 flex items-start pt-1">
+        {/* === RIGHT ZONE: Specs + Amenities (hidden on mobile, shown below instead) === */}
+        <div className="hidden sm:flex shrink-0 w-[160px] flex-col gap-3">
+          {/* Specs */}
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-3 text-[0.8125rem]">
+              {listing.rooms != null && (
+                <span className="text-[#1d1d1f]">
+                  <span className="text-[#86868b]">Rooms</span> {listing.rooms}
+                </span>
+              )}
+              {listing.floor != null && (
+                <span className="text-[#1d1d1f]">
+                  <span className="text-[#86868b]">Floor</span> {listing.floor}{listing.total_floors ? `/${listing.total_floors}` : ""}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-3 text-[0.8125rem]">
+              {listing.sqm != null && (
+                <span className="text-[#1d1d1f]">
+                  <span className="text-[#86868b]">Area</span> {listing.sqm} sqm
+                </span>
+              )}
+              {listing.price_per_sqm != null && (
+                <span className="text-[#1d1d1f]">
+                  <span className="text-[#86868b]">₪/sqm</span> {Math.round(listing.price_per_sqm)}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Amenities */}
+          {activeAmenityGroups.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {activeAmenityGroups.map((group) =>
+                group.active.map(([key, label]) => (
+                  <span key={key} className={`text-[0.625rem] px-1.5 py-[2px] rounded-full ${group.color}`}>
+                    {label}
+                    {key === "parking" && listing.parking_spots && listing.parking_spots > 1
+                      ? ` (${listing.parking_spots})`
+                      : ""}
+                  </span>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* === ACTION STRIP: Eye icon + Vertical deal-type tag === */}
+        <div className="shrink-0 flex flex-col items-center gap-2 pt-0.5">
+          {/* Hide/Unhide */}
           {onUnhide && (
             <button
               onClick={() => onUnhide(listing.yad2_id)}
@@ -156,7 +191,64 @@ export function ListingCard({ listing, onHide, onUnhide }: ListingCardProps) {
               </svg>
             </button>
           )}
+
+          {/* Vertical deal-type tag */}
+          {(isRent || isForSale) && (
+            <span
+              className={`text-[0.5625rem] font-bold tracking-wider px-1 py-2 rounded-md ${
+                isRent
+                  ? "bg-[#e8f4fd] text-[#0071e3]"
+                  : "bg-[#e6f9e6] text-[#34c759]"
+              }`}
+              style={{ writingMode: "vertical-rl", textOrientation: "upright" }}
+            >
+              {isRent ? "RENT" : "BUY"}
+            </span>
+          )}
         </div>
+      </div>
+
+      {/* === MOBILE BOTTOM: Specs + Amenities (visible only on small screens) === */}
+      <div className="sm:hidden mt-3 pt-3 border-t border-[#f0f0f2]">
+        {/* Specs row */}
+        <div className="flex items-center gap-3 flex-wrap text-[0.8125rem]">
+          {listing.rooms != null && (
+            <span className="text-[#1d1d1f]">
+              <span className="text-[#86868b]">Rooms</span> {listing.rooms}
+            </span>
+          )}
+          {listing.sqm != null && (
+            <span className="text-[#1d1d1f]">
+              <span className="text-[#86868b]">·</span> {listing.sqm} sqm
+            </span>
+          )}
+          {listing.floor != null && (
+            <span className="text-[#1d1d1f]">
+              <span className="text-[#86868b]">·</span> Fl. {listing.floor}
+            </span>
+          )}
+          {listing.price_per_sqm != null && (
+            <span className="text-[#1d1d1f]">
+              <span className="text-[#86868b]">·</span> {Math.round(listing.price_per_sqm)} ₪/sqm
+            </span>
+          )}
+        </div>
+
+        {/* Amenities */}
+        {activeAmenityGroups.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-2">
+            {activeAmenityGroups.map((group) =>
+              group.active.map(([key, label]) => (
+                <span key={key} className={`text-[0.625rem] px-1.5 py-[2px] rounded-full ${group.color}`}>
+                  {label}
+                  {key === "parking" && listing.parking_spots && listing.parking_spots > 1
+                    ? ` (${listing.parking_spots})`
+                    : ""}
+                </span>
+              ))
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
