@@ -98,6 +98,7 @@ Modern frontend deployed on Vercel with Supabase (PostgreSQL) as the database.
 | Database | Supabase (PostgreSQL) |
 | Styling | Tailwind CSS 4 |
 | Maps | Leaflet.js |
+| Testing | Vitest |
 | Deployment | Vercel |
 
 ### Quick Start
@@ -153,3 +154,25 @@ mongodump --uri="mongodb://localhost:27017" --db=yad2search \
 docker compose exec app mongorestore --uri="mongodb://mongo:27017" \
   --archive=/app/backups/yad2search_20260507.gz --gzip --drop
 ```
+
+---
+
+## Testing
+
+### Python
+
+```bash
+cd python
+uv run pytest tests/ -x -q
+```
+
+Covers: API routes, scraper, search engine, sync, notifications, hidden listings, models, scheduler jobs.
+
+### Next.js
+
+```bash
+cd next
+npm test
+```
+
+Uses **Vitest** with mocked Supabase. Covers: API routes, scraper parsing, search engine filters/sorting/pagination/geo, sync & price history, notifications & dedup, hidden listings, models & constants (109 tests across 8 files).
