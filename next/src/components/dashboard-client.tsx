@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { BoardClient } from "@/components/board/board-client";
 import type { SavedSearch, NotificationLog } from "@/types";
 
 interface DashboardStats {
@@ -126,6 +127,16 @@ export function DashboardClient({ stats, savedSearches, recentNotifications }: D
           </div>
         </Link>
       )}
+
+      {/* Board */}
+      <Card className="mb-6">
+        <div className="p-5 border-b border-black/[0.04]">
+          <h2 className="text-[0.9375rem] font-semibold text-[#1d1d1f]">Board</h2>
+        </div>
+        <CardContent className="p-4">
+          <BoardClient />
+        </CardContent>
+      </Card>
 
       {/* Saved Searches */}
       <Card>

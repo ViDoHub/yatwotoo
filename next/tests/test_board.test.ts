@@ -78,6 +78,17 @@ describe("API: GET /api/board", () => {
     expect(resp.status).toBe(500);
     expect(json.error).toBe("DB connection failed");
   });
+
+  it("returns empty array when no board listings exist", async () => {
+    mockData = [];
+
+    const { GET } = await import("@/app/api/board/route");
+    const resp = await GET();
+    const json = await resp.json();
+
+    expect(resp.status).toBe(200);
+    expect(json).toEqual([]);
+  });
 });
 
 describe("API: POST /api/board", () => {
@@ -170,6 +181,23 @@ describe("API: POST /api/board", () => {
     const json = await resp.json();
     expect(json.error).toContain("already on the board");
   });
+
+  it("returns 409 response with meaningful error message", async () => {
+    mockError = { code: "23505", message: "duplicate key value violates unique constraint" };
+
+    const { POST } = await import("@/app/api/board/route");
+    const request = new Request("http://localhost:3001/api/board", {
+      method: "POST",
+      body: JSON.stringify({ listing_id: "l1" }),
+      headers: { "Content-Type": "application/json" },
+    });
+    const resp = await POST(request);
+    const json = await resp.json();
+
+    expect(resp.status).toBe(409);
+    expect(typeof json.error).toBe("string");
+    expect(json.error.length).toBeGreaterThan(0);
+  });
 });
 
 describe("API: PATCH /api/board/[id]", () => {
@@ -252,6 +280,101 @@ describe("API: PATCH /api/board/[id]", () => {
     expect(resp.status).toBe(400);
     const json = await resp.json();
     expect(json.error).toContain("No valid fields");
+  });
+
+  it("updates visit_date", async () => {
+    const visitDate = "2026-05-20T14:00:00.000Z";
+    mockData = { id: "b1", board_column: "visit", visit_date: visitDate };
+
+    const { PATCH } = await import("@/app/api/board/[id]/route");
+    const request = new Request("http://localhost:3001/api/board/b1", {
+      method: "PATCH",
+      body: JSON.stringify({ visit_date: visitDate }),
+      headers: { "Content-Type": "application/json" },
+    });
+    const resp = await PATCH(request, { params: Promise.resolve({ id: "b1" }) });
+    const json = await resp.json();
+
+    expect(resp.status).toBe(200);
+    expect(json.visit_date).toBe(visitDate);
+  });
+
+  it("moves to visit column with visit_date in one update", async () => {
+    const visitDate = "2026-05-21T10:30:00.000Z";
+    mockData = { id: "b1", board_column: "visit", visit_date: visitDate, position: 0 };
+
+    const { PATCH } = await import("@/app/api/board/[id]/route");
+    const request = new Request("http://localhost:3001/api/board/b1", {
+      method: "PATCH",
+      body: JSON.stringify({ board_column: "visit", visit_date: visitDate }),
+      headers: { "Content-Type": "application/json" },
+    });
+    const resp = await PATCH(request, { params: Promise.resolve({ id: "b1" }) });
+    const json = await resp.json();
+
+    expect(resp.status).toBe(200);
+    expect(json.board_column).toBe("visit");
+    expect(json.visit_date).toBe(visitDate);
+  });
+
+  it("clears visit_date with null", async () => {
+    mockData = { id: "b1", board_column: "visit", visit_date: null };
+
+    const { PATCH } = await import("@/app/api/board/[id]/route");
+    const request = new Request("http://localhost:3001/api/board/b1", {
+      method: "PATCH",
+      body: JSON.stringify({ visit_date: null }),
+      headers: { "Content-Type": "application/json" },
+    });
+    const resp = await PATCH(request, { params: Promise.resolve({ id: "b1" }) });
+    const json = await resp.json();
+
+    expect(resp.status).toBe(200);
+    expect(json.visit_date).toBeNull();
+  });
+
+  it("returns 400 on invalid JSON body", async () => {
+    const { PATCH } = await import("@/app/api/board/[id]/route");
+    const request = new Request("http://localhost:3001/api/board/b1", {
+      method: "PATCH",
+      body: "not json",
+    });
+    const resp = await PATCH(request, { params: Promise.resolve({ id: "b1" }) });
+
+    expect(resp.status).toBe(400);
+    const json = await resp.json();
+    expect(json.error).toContain("Invalid JSON");
+  });
+
+  it("updates visit column with contacts and visit_date combined", async () => {
+    const visitDate = "2026-05-22T16:00:00.000Z";
+    mockData = {
+      id: "b1",
+      board_column: "visit",
+      contact_name: "Jane",
+      contact_phone: "0521234567",
+      visit_date: visitDate,
+    };
+
+    const { PATCH } = await import("@/app/api/board/[id]/route");
+    const request = new Request("http://localhost:3001/api/board/b1", {
+      method: "PATCH",
+      body: JSON.stringify({
+        board_column: "visit",
+        contact_name: "Jane",
+        contact_phone: "0521234567",
+        visit_date: visitDate,
+      }),
+      headers: { "Content-Type": "application/json" },
+    });
+    const resp = await PATCH(request, { params: Promise.resolve({ id: "b1" }) });
+    const json = await resp.json();
+
+    expect(resp.status).toBe(200);
+    expect(json.board_column).toBe("visit");
+    expect(json.contact_name).toBe("Jane");
+    expect(json.contact_phone).toBe("0521234567");
+    expect(json.visit_date).toBe(visitDate);
   });
 });
 
@@ -375,5 +498,25 @@ describe("API: PATCH /api/board/reorder", () => {
     const resp = await PATCH(request);
 
     expect(resp.status).toBe(400);
+  });
+
+  it("returns 500 when database update fails", async () => {
+    mockError = { message: "Update failed" };
+
+    const { PATCH } = await import("@/app/api/board/reorder/route");
+    const request = new Request("http://localhost:3001/api/board/reorder", {
+      method: "PATCH",
+      body: JSON.stringify({
+        items: [
+          { id: "b1", board_column: "review", position: 0 },
+        ],
+      }),
+      headers: { "Content-Type": "application/json" },
+    });
+    const resp = await PATCH(request);
+    const json = await resp.json();
+
+    expect(resp.status).toBe(500);
+    expect(json.error).toContain("failed");
   });
 });
