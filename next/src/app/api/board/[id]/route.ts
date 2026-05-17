@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase/server";
+import { getAuthenticatedClient } from "@/lib/supabase/auth-helper";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -11,7 +11,8 @@ interface RouteParams {
  */
 export async function PATCH(request: Request, { params }: RouteParams) {
   const { id } = await params;
-  const supabase = createServerClient();
+  const { supabase, error: authError } = await getAuthenticatedClient();
+  if (authError) return authError;
 
   let body: Record<string, unknown>;
   try {
@@ -43,7 +44,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
   updates.updated_at = new Date().toISOString();
 
-  const { data, error } = await supabase
+  const { data, error } = await supabase!
     .from("board_listings")
     .update(updates)
     .eq("id", id)
@@ -67,9 +68,10 @@ export async function PATCH(request: Request, { params }: RouteParams) {
  */
 export async function DELETE(_request: Request, { params }: RouteParams) {
   const { id } = await params;
-  const supabase = createServerClient();
+  const { supabase, error: authError } = await getAuthenticatedClient();
+  if (authError) return authError;
 
-  const { error } = await supabase
+  const { error } = await supabase!
     .from("board_listings")
     .delete()
     .eq("id", id);

@@ -1,10 +1,10 @@
-import { createServerClient } from "@/lib/supabase/server";
+import { createAuthClient } from "@/lib/supabase/server";
 import { DashboardClient } from "@/components/dashboard-client";
 
 export const metadata = { title: "Dashboard" };
 
 export default async function DashboardPage() {
-  const supabase = createServerClient();
+  const supabase = await createAuthClient();
 
   const [totalResult, rentResult, forsaleResult, hiddenResult, searchesResult, notificationsResult] =
     await Promise.all([

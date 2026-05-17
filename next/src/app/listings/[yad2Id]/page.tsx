@@ -1,10 +1,10 @@
-import { createServerClient } from "@/lib/supabase/server";
+import { createAuthClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import { ListingDetailClient } from "@/components/listing-detail-client";
 
 export async function generateMetadata({ params }: { params: Promise<{ yad2Id: string }> }) {
   const { yad2Id } = await params;
-  const supabase = createServerClient();
+  const supabase = await createAuthClient();
   const { data: listing } = await supabase
     .from("listings")
     .select("street,city")
@@ -20,7 +20,7 @@ export default async function ListingDetailPage({
   params: Promise<{ yad2Id: string }>;
 }) {
   const { yad2Id } = await params;
-  const supabase = createServerClient();
+  const supabase = await createAuthClient();
 
   const { data: listing } = await supabase
     .from("listings")

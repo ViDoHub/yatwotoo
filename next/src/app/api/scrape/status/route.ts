@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { REGIONS } from "@/lib/constants";
 
 /**
@@ -7,7 +7,7 @@ import { REGIONS } from "@/lib/constants";
  * Return current/last scrape job status and listing counts.
  */
 export async function GET() {
-  const supabase = createServerClient();
+  const supabase = createAdminClient();
 
   // Get latest job
   const { data: job } = await supabase

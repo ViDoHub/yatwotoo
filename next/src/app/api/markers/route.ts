@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 
 /**
  * GET /api/markers
@@ -9,7 +9,7 @@ import { createServerClient } from "@/lib/supabase/server";
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const params = url.searchParams;
-  const supabase = createServerClient();
+  const supabase = createAdminClient();
 
   const hiddenOnly = params.get("hidden") === "true";
 

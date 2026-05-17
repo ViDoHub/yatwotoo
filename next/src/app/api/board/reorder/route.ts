@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase/server";
+import { getAuthenticatedClient } from "@/lib/supabase/auth-helper";
 
 interface ReorderItem {
   id: string;
@@ -13,7 +13,8 @@ interface ReorderItem {
  * Body: { items: Array<{ id, board_column, position }> }
  */
 export async function PATCH(request: Request) {
-  const supabase = createServerClient();
+  const { supabase, error: authError } = await getAuthenticatedClient();
+  if (authError) return authError;
 
   let body: { items?: ReorderItem[] };
   try {
@@ -42,7 +43,7 @@ export async function PATCH(request: Request) {
   // Update each item's position and column
   const results = await Promise.all(
     items.map((item) =>
-      supabase
+      supabase!
         .from("board_listings")
         .update({
           board_column: item.board_column,

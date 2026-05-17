@@ -1,4 +1,4 @@
-import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import type { ListingInsert } from "@/types";
 import type { Marker } from "@/lib/scraper/yad2-client";
 import { parseMarker } from "@/lib/scraper/yad2-client";
@@ -15,7 +15,7 @@ export interface UpsertResult {
  * - Existing listings: update last_seen_at, detect price changes
  */
 export async function upsertListings(listings: ListingInsert[]): Promise<UpsertResult> {
-  const supabase = createServerClient();
+  const supabase = createAdminClient();
   const newListings: ListingInsert[] = [];
   const priceDrops: Array<{ listing: ListingInsert; oldPrice: number }> = [];
 
@@ -132,7 +132,7 @@ export async function processMarkerChunk(
 export async function deduplicateListing(listing: ListingInsert): Promise<boolean> {
   if (!listing.street || !listing.rooms) return false;
 
-  const supabase = createServerClient();
+  const supabase = createAdminClient();
   let query = supabase
     .from("listings")
     .select("yad2_id")

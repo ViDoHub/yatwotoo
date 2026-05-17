@@ -69,12 +69,12 @@ export function createMockSupabaseClient(overrides: Record<string, unknown> = {}
 }
 
 /**
- * Mock the createServerClient to return a controlled Supabase client.
+ * Mock the createAdminClient to return a controlled Supabase client.
  */
 export function mockSupabaseServer() {
   const mock = createMockSupabaseClient();
   vi.mock("@/lib/supabase/server", () => ({
-    createServerClient: () => mock.client,
+    createAdminClient: () => mock.client,
   }));
   return mock;
 }

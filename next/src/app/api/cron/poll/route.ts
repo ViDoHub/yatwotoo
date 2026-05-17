@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { JOB_STATUS } from "@/lib/constants";
 
 /**
@@ -8,7 +8,7 @@ import { JOB_STATUS } from "@/lib/constants";
  * Runs every 15 minutes.
  */
 export async function GET() {
-  const supabase = createServerClient();
+  const supabase = createAdminClient();
   const baseUrl = process.env.NEXT_PUBLIC_VERCEL_URL
     ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
     : "http://localhost:3000";

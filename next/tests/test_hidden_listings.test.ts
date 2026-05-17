@@ -39,7 +39,7 @@ const mockSendTelegram = vi.fn().mockResolvedValue(true);
 const mockSendEmail = vi.fn().mockResolvedValue(true);
 
 vi.mock("@/lib/supabase/server", () => ({
-  createServerClient: () => ({ from: mockFrom }),
+  createAdminClient: () => ({ from: mockFrom }),
 }));
 vi.mock("@/lib/notifications/whatsapp", () => ({
   sendWhatsApp: (...args: unknown[]) => mockSendWhatsApp(...args),

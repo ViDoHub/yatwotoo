@@ -32,8 +32,15 @@ setupChain();
 
 const mockFrom = vi.fn().mockReturnValue(mockQueryChain);
 
-vi.mock("@/lib/supabase/server", () => ({
-  createServerClient: () => ({ from: mockFrom }),
+const mockUser = { id: "test-user-id", email: "test@example.com" };
+
+vi.mock("@/lib/supabase/auth-helper", () => ({
+  getAuthenticatedClient: () =>
+    Promise.resolve({
+      supabase: { from: mockFrom },
+      user: mockUser,
+      error: null,
+    }),
 }));
 
 // ============================================

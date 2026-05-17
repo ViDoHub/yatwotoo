@@ -1,4 +1,4 @@
-import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 
 const CALLMEBOT_URL = "https://api.callmebot.com/whatsapp.php";
 
@@ -11,7 +11,7 @@ export async function sendWhatsApp(
   apikey?: string
 ): Promise<boolean> {
   if (!phone || !apikey) {
-    const supabase = createServerClient();
+    const supabase = createAdminClient();
     const { data } = await supabase
       .from("user_settings")
       .select("whatsapp_phone, whatsapp_apikey")

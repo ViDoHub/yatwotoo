@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 
 /**
  * GET /api/listings/[yad2Id]
@@ -10,7 +10,7 @@ export async function GET(
   { params }: { params: Promise<{ yad2Id: string }> }
 ) {
   const { yad2Id } = await params;
-  const supabase = createServerClient();
+  const supabase = createAdminClient();
 
   const { data: listing, error } = await supabase
     .from("listings")

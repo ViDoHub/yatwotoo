@@ -36,7 +36,16 @@ const mockFrom = vi.fn().mockReturnValue(mockQueryChain);
 const mockSearchListings = vi.fn().mockResolvedValue({ listings: [], total: 0 });
 
 vi.mock("@/lib/supabase/server", () => ({
-  createServerClient: () => ({ from: mockFrom }),
+  createAdminClient: () => ({ from: mockFrom }),
+}));
+
+vi.mock("@/lib/supabase/auth-helper", () => ({
+  getAuthenticatedClient: () =>
+    Promise.resolve({
+      supabase: { from: mockFrom },
+      user: { id: "test-user-id", email: "test@example.com" },
+      error: null,
+    }),
 }));
 
 vi.mock("@/lib/search/engine", () => ({

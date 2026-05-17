@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { JOB_STATUS } from "@/lib/constants";
 
 /**
@@ -7,7 +7,7 @@ import { JOB_STATUS } from "@/lib/constants";
  * Create a new pending scrape job. The cron handler picks it up.
  */
 export async function POST(request: Request) {
-  const supabase = createServerClient();
+  const supabase = createAdminClient();
 
   // Check if a scrape is already running or pending
   const { data: active } = await supabase

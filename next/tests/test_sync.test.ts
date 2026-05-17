@@ -81,7 +81,7 @@ const mockFrom = vi.fn((table: string) => {
 });
 
 vi.mock("@/lib/supabase/server", () => ({
-  createServerClient: () => ({ from: mockFrom }),
+  createAdminClient: () => ({ from: mockFrom }),
 }));
 
 import { upsertListings, deduplicateListing } from "@/lib/scraper/sync";

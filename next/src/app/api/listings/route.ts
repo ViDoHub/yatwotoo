@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { searchListings } from "@/lib/search/engine";
-import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import type { SearchFilters } from "@/lib/search/engine";
 
 /**
@@ -46,7 +46,7 @@ export async function GET(request: Request) {
   // Get hidden count when showing non-hidden listings
   let hiddenCount = 0;
   if (!hiddenOnly) {
-    const supabase = createServerClient();
+    const supabase = createAdminClient();
     const { count } = await supabase
       .from("listings")
       .select("*", { count: "exact", head: true })

@@ -1,4 +1,4 @@
-import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import type { Listing } from "@/types";
 
 export interface SearchFilters {
@@ -46,7 +46,7 @@ export async function searchListings(
   pageSize: number = 20,
   hiddenOnly: boolean = false
 ): Promise<SearchResult> {
-  const supabase = createServerClient();
+  const supabase = createAdminClient();
 
   // If doing a radius search, use the RPC function
   if (filters.center_lat && filters.center_lng && filters.radius_km) {
@@ -91,7 +91,7 @@ async function searchWithRadius(
   pageSize: number,
   hiddenOnly: boolean
 ): Promise<SearchResult> {
-  const supabase = createServerClient();
+  const supabase = createAdminClient();
 
   // First get IDs from the RPC function
   const { data: geoResults, error: geoError } = await supabase.rpc(
@@ -247,7 +247,7 @@ export async function matchSavedSearch(
   filters: SearchFilters,
   yad2Id: string
 ): Promise<boolean> {
-  const supabase = createServerClient();
+  const supabase = createAdminClient();
 
   let query = supabase
     .from("listings")
@@ -265,7 +265,7 @@ export async function matchSavedSearch(
  * Get count of active listings per area_id.
  */
 export async function getAreaCounts(): Promise<Record<number, number>> {
-  const supabase = createServerClient();
+  const supabase = createAdminClient();
 
   const { data } = await supabase
     .from("listings")
@@ -288,7 +288,7 @@ export async function getAreaCounts(): Promise<Record<number, number>> {
 export async function getNeighborhoods(
   cities: string[]
 ): Promise<Array<{ neighborhood: string; count: number }>> {
-  const supabase = createServerClient();
+  const supabase = createAdminClient();
 
   let query = supabase
     .from("listings")

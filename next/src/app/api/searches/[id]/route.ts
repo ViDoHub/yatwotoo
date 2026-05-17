@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase/server";
+import { getAuthenticatedClient } from "@/lib/supabase/auth-helper";
 
 /**
  * PUT /api/searches/[id] — Update a saved search
@@ -11,9 +11,10 @@ export async function PUT(
 ) {
   const { id } = await params;
   const body = await request.json();
-  const supabase = createServerClient();
+  const { supabase, error: authError } = await getAuthenticatedClient();
+  if (authError) return authError;
 
-  const { data, error } = await supabase
+  const { data, error } = await supabase!
     .from("saved_searches")
     .update(body)
     .eq("id", id)
@@ -32,9 +33,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const supabase = createServerClient();
+  const { supabase, error: authError } = await getAuthenticatedClient();
+  if (authError) return authError;
 
-  const { error } = await supabase
+  const { error } = await supabase!
     .from("saved_searches")
     .update({ is_active: false })
     .eq("id", id);

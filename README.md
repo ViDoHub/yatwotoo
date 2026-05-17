@@ -25,8 +25,17 @@ yatwotoo/
 │   ├── Dockerfile
 │   └── pyproject.toml
 └── next/            ← Frontend: Next.js + Supabase (Vercel)
-    ├── src/         (app router, components, API routes)
-    ├── vercel.json  (cron schedules)
+    ├── src/
+    │   ├── app/         (pages, API routes, auth callback)
+    │   ├── components/  (board, cards, map, navbar)
+    │   ├── lib/         (supabase clients, scraper, search, notifications)
+    │   └── types/       (TypeScript DB types)
+    ├── supabase/
+    │   ├── config.toml  (local Supabase config, Inbucket, auth)
+    │   ├── migrations/  (SQL migrations)
+    │   └── schema.sql   (reference schema)
+    ├── tests/
+    ├── vercel.json      (cron schedules)
     └── package.json
 ```
 
@@ -156,6 +165,62 @@ Modern frontend deployed on Vercel with Supabase (PostgreSQL) as the database.
 
    Available at **http://localhost:3000**.
 
+### Authentication
+
+The app uses Supabase Auth with **magic link (email OTP)** and **Google OAuth**.
+
+- **Middleware** (`src/middleware.ts`) refreshes the session on every request and redirects unauthenticated users to `/login`. API routes handle auth themselves via `getAuthenticatedClient()`.
+- **Row Level Security (RLS)** is enabled on user-scoped tables (`board_listings`, `saved_searches`, `notification_logs`, `user_settings`, `hidden_listings`). Each row has a `user_id` column filtered by `auth.uid()`.
+- Shared data tables (`listings`, `price_history`, `scrape_jobs`) use the **admin client** (service role key, bypasses RLS).
+
+#### Supabase Client Architecture
+
+| Client | File | Usage |
+|--------|------|-------|
+| `createAuthClient()` | `lib/supabase/server.ts` | Server Components & API routes — cookie-based user sessions |
+| `createBrowserClient()` | `lib/supabase/client.ts` | Client Components — browser-side auth |
+| `createAdminClient()` | `lib/supabase/server.ts` | Cron jobs, scraper, shared data — bypasses RLS |
+| `getAuthenticatedClient()` | `lib/supabase/auth-helper.ts` | API route guard — returns `{supabase, user}` or 401 |
+
+#### Magic Link Login (Local Dev)
+
+Magic link emails are **not actually sent** in local dev. They go to **Inbucket**, a built-in email testing server:
+
+1. Go to `/login` and enter any email address
+2. Open **http://localhost:54324** (Inbucket web UI)
+3. Find the magic link email in the inbox
+4. Click the link — it redirects to `/auth/callback` and logs you in
+
+> **Tip:** Inbucket accepts any email address — no real mailbox needed. Use `test@test.com` or anything you like.
+
+#### Google OAuth (Production)
+
+Requires a GCP OAuth 2.0 client configured in the Supabase dashboard under Authentication → Providers → Google.
+
+### Local Supabase Services
+
+After running `npx supabase start`, these services are available:
+
+| Service | URL | Description |
+|---------|-----|-------------|
+| API (PostgREST) | http://127.0.0.1:54321 | Supabase REST API |
+| Database | postgresql://postgres:postgres@127.0.0.1:54322/postgres | Direct PostgreSQL connection |
+| Studio | http://127.0.0.1:54323 | Database admin UI (tables, SQL editor, auth users) |
+| Inbucket | http://127.0.0.1:54324 | Email testing (magic link emails land here) |
+
+Run `npx supabase status` to see all URLs and API keys.
+
+### Kanban Board
+
+The board has 4 columns with special behaviors on drag-and-drop:
+
+| Move | Behavior |
+|------|----------|
+| Review → Get Contacts | Opens Yad2 listing page + contact info popup (skipped if phone already saved) |
+| Get Contacts → Call | Direct move (contact info was entered in previous step) |
+| Any → Visit | Visit date/time picker popup + Google Calendar sync option |
+| Edit contacts | Click "Edit" or "+ Add contact info" on any card (from Get Contacts onward) |
+
 ### Supabase Local Commands
 
 | Command | Description |
@@ -166,10 +231,17 @@ Modern frontend deployed on Vercel with Supabase (PostgreSQL) as the database.
 | `npx supabase status` | Show local URLs, keys, and service status |
 | `npx supabase db query "SELECT ..."` | Run SQL against local DB |
 | `npx supabase migration new <name>` | Create a new migration file |
+| `npx supabase stop --project-id yatwotoo-next` | Force stop if port conflicts |
 
 ### Database Migrations
 
 Migrations live in `next/supabase/migrations/` and are applied automatically on `supabase start` or `supabase db reset`.
+
+| Migration | Description |
+|-----------|-------------|
+| `20240101000000_init.sql` | Core schema: listings, price_history, scrape_jobs, saved_searches, etc. |
+| `20250517000000_board_listings.sql` | Kanban board table with column/position tracking |
+| `20250517100000_add_user_id_rls.sql` | Multi-user: adds `user_id` + RLS policies to user-scoped tables |
 
 To create a new migration:
 

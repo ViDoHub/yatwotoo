@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 
 /**
  * GET /api/cities?top_area_ids=1,2,3
@@ -9,7 +9,7 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const topAreaIdsParam = url.searchParams.get("top_area_ids");
 
-  const supabase = createServerClient();
+  const supabase = createAdminClient();
 
   const ids = topAreaIdsParam
     ? topAreaIdsParam.split(",").map(Number).filter(Boolean)

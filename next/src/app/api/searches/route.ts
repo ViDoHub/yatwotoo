@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase/server";
+import { getAuthenticatedClient } from "@/lib/supabase/auth-helper";
 
 /**
  * GET /api/searches — List all saved searches
  * POST /api/searches — Create a new saved search
  */
 export async function GET() {
-  const supabase = createServerClient();
+  const { supabase, error: authError } = await getAuthenticatedClient();
+  if (authError) return authError;
 
-  const { data, error } = await supabase
+  const { data, error } = await supabase!
     .from("saved_searches")
     .select("*")
     .order("created_at", { ascending: false });
@@ -28,11 +29,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Name is required" }, { status: 400 });
   }
 
-  const supabase = createServerClient();
+  const { supabase, user, error: authError } = await getAuthenticatedClient();
+  if (authError) return authError;
 
-  const { data, error } = await supabase
+  const { data, error } = await supabase!
     .from("saved_searches")
-    .insert({ name, filters: filters ?? {} })
+    .insert({ name, filters: filters ?? {}, user_id: user!.id })
     .select()
     .single();
 

@@ -2,8 +2,11 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { createBrowserClient } from "@/lib/supabase/client";
+import type { User } from "@supabase/supabase-js";
 
 const NAV_LINKS = [
   { href: "/", label: "Home" },
@@ -13,6 +16,26 @@ const NAV_LINKS = [
 
 export function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+  const supabase = createBrowserClient();
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUser(data.user));
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [supabase]);
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    router.push("/login");
+  }
 
   return (
     <nav className="sticky top-0 z-50 bg-white/72 backdrop-blur-xl border-b border-black/[0.04]">
@@ -45,6 +68,14 @@ export function Navbar() {
               </Link>
             );
           })}
+          {user && (
+            <button
+              onClick={handleLogout}
+              className="text-[0.8125rem] font-[450] text-[#86868b] px-3 py-1.5 rounded-lg transition-all duration-150 hover:text-[#1d1d1f] hover:bg-black/[0.04] ml-2"
+            >
+              Sign out
+            </button>
+          )}
         </div>
       </div>
     </nav>

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase/server";
+import { getAuthenticatedClient } from "@/lib/supabase/auth-helper";
 import { sendWhatsApp } from "@/lib/notifications/whatsapp";
 import { sendTelegram } from "@/lib/notifications/telegram";
 import { sendEmail } from "@/lib/notifications/email";
@@ -9,9 +9,10 @@ import { sendEmail } from "@/lib/notifications/email";
  * PUT /api/settings — Update user settings
  */
 export async function GET() {
-  const supabase = createServerClient();
+  const { supabase, error: authError } = await getAuthenticatedClient();
+  if (authError) return authError;
 
-  const { data, error } = await supabase
+  const { data, error } = await supabase!
     .from("user_settings")
     .select("*")
     .limit(1)
@@ -35,10 +36,11 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   const body = await request.json();
-  const supabase = createServerClient();
+  const { supabase, user, error: authError } = await getAuthenticatedClient();
+  if (authError) return authError;
 
   // Upsert — insert if no row exists, update if it does
-  const { data: existing } = await supabase
+  const { data: existing } = await supabase!
     .from("user_settings")
     .select("id")
     .limit(1)
@@ -46,16 +48,16 @@ export async function PUT(request: Request) {
 
   let result;
   if (existing) {
-    result = await supabase
+    result = await supabase!
       .from("user_settings")
       .update(body)
       .eq("id", existing.id)
       .select()
       .single();
   } else {
-    result = await supabase
+    result = await supabase!
       .from("user_settings")
-      .insert(body)
+      .insert({ ...body, user_id: user!.id })
       .select()
       .single();
   }

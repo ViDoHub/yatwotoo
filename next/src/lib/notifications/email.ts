@@ -1,5 +1,5 @@
 import nodemailer from "nodemailer";
-import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 
 /**
  * Send an email notification using SMTP settings from user_settings.
@@ -8,7 +8,7 @@ export async function sendEmail(
   subject: string,
   body: string
 ): Promise<boolean> {
-  const supabase = createServerClient();
+  const supabase = createAdminClient();
   const { data } = await supabase
     .from("user_settings")
     .select(

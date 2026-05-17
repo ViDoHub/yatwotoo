@@ -40,7 +40,7 @@ const mockFrom = vi.fn(() => chain);
 const mockRpc = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
-  createServerClient: () => ({ from: mockFrom, rpc: mockRpc }),
+  createAdminClient: () => ({ from: mockFrom, rpc: mockRpc }),
 }));
 
 import { searchListings, getAreaCounts, getNeighborhoods, matchSavedSearch } from "@/lib/search/engine";

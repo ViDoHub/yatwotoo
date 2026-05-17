@@ -1,4 +1,4 @@
-import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { sendWhatsApp } from "./whatsapp";
 import { sendTelegram } from "./telegram";
 import { sendEmail } from "./email";
@@ -8,7 +8,7 @@ import type { Listing } from "@/types";
  * Send a message to all enabled notification channels.
  */
 async function sendToAllChannels(message: string, subject: string = ""): Promise<boolean> {
-  const supabase = createServerClient();
+  const supabase = createAdminClient();
   const { data: settings } = await supabase
     .from("user_settings")
     .select("*")
@@ -58,7 +58,7 @@ export async function notifyNewListing(
   listing: Listing,
   savedSearchId: string
 ): Promise<boolean> {
-  const supabase = createServerClient();
+  const supabase = createAdminClient();
 
   // Check if already notified
   const { data: existing } = await supabase
@@ -93,7 +93,7 @@ export async function notifyPriceDrop(
   oldPrice: number,
   savedSearchId: string
 ): Promise<boolean> {
-  const supabase = createServerClient();
+  const supabase = createAdminClient();
 
   const { data: existing } = await supabase
     .from("notification_logs")

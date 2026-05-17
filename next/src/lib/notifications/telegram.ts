@@ -1,4 +1,4 @@
-import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 
 /**
  * Send a Telegram message via Bot API.
@@ -9,7 +9,7 @@ export async function sendTelegram(
   chatId?: string
 ): Promise<boolean> {
   if (!token || !chatId) {
-    const supabase = createServerClient();
+    const supabase = createAdminClient();
     const { data } = await supabase
       .from("user_settings")
       .select("telegram_bot_token, telegram_chat_id")

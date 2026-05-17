@@ -68,7 +68,7 @@ setupChain();
 const mockFrom = vi.fn().mockReturnValue(mockQueryChain);
 
 vi.mock("@/lib/supabase/server", () => ({
-  createServerClient: () => ({ from: mockFrom }),
+  createAdminClient: () => ({ from: mockFrom }),
 }));
 
 import { notifyNewListing, notifyPriceDrop } from "@/lib/notifications/dispatcher";

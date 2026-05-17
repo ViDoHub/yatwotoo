@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { JOB_STATUS, REGIONS } from "@/lib/constants";
 import { deepFetchRegion, buildApiParams } from "@/lib/scraper/yad2-client";
 import { processMarkerChunk } from "@/lib/scraper/sync";
@@ -13,7 +13,7 @@ const DEAL_TYPES: DealType[] = ["rent", "forsale"];
  * Called internally by the cron handler in a loop.
  */
 export async function POST() {
-  const supabase = createServerClient();
+  const supabase = createAdminClient();
 
   // Find the current running or pending job
   const { data: job } = await supabase

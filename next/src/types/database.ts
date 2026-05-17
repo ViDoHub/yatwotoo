@@ -171,9 +171,31 @@ export interface Database {
         };
         Relationships: [];
       };
+      hidden_listings: {
+        Row: {
+          id: string;
+          user_id: string;
+          listing_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          listing_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          listing_id?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       saved_searches: {
         Row: {
           id: string;
+          user_id: string | null;
           name: string;
           filters: Json;
           is_active: boolean;
@@ -181,6 +203,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
+          user_id?: string | null;
           name: string;
           filters?: Json;
           is_active?: boolean;
@@ -188,6 +211,7 @@ export interface Database {
         };
         Update: {
           id?: string;
+          user_id?: string | null;
           name?: string;
           filters?: Json;
           is_active?: boolean;
@@ -219,6 +243,7 @@ export interface Database {
       notification_logs: {
         Row: {
           id: string;
+          user_id: string | null;
           saved_search_id: string;
           listing_id: string;
           message_type: string;
@@ -226,6 +251,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
+          user_id?: string | null;
           saved_search_id: string;
           listing_id: string;
           message_type: string;
@@ -233,6 +259,7 @@ export interface Database {
         };
         Update: {
           id?: string;
+          user_id?: string | null;
           saved_search_id?: string;
           listing_id?: string;
           message_type?: string;
@@ -243,6 +270,7 @@ export interface Database {
       user_settings: {
         Row: {
           id: string;
+          user_id: string | null;
           whatsapp_enabled: boolean;
           whatsapp_phone: string;
           whatsapp_apikey: string;
@@ -260,6 +288,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
+          user_id?: string | null;
           whatsapp_enabled?: boolean;
           whatsapp_phone?: string;
           whatsapp_apikey?: string;
@@ -277,6 +306,7 @@ export interface Database {
         };
         Update: {
           id?: string;
+          user_id?: string | null;
           whatsapp_enabled?: boolean;
           whatsapp_phone?: string;
           whatsapp_apikey?: string;
@@ -339,6 +369,7 @@ export interface Database {
       board_listings: {
         Row: {
           id: string;
+          user_id: string | null;
           listing_id: string;
           board_column: string;
           position: number;
@@ -351,6 +382,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
+          user_id?: string | null;
           listing_id: string;
           board_column?: string;
           position?: number;
@@ -363,6 +395,7 @@ export interface Database {
         };
         Update: {
           id?: string;
+          user_id?: string | null;
           listing_id?: string;
           board_column?: string;
           position?: number;

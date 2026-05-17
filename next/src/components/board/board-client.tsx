@@ -106,7 +106,7 @@ export function BoardClient() {
       contact_phone: contactPhone,
     };
 
-    // If there's a pending move to "call", apply it too
+    // If there's a pending move, apply the column change too
     if (pendingMove) {
       updates.board_column = pendingMove.toColumn;
     }
@@ -196,13 +196,18 @@ export function BoardClient() {
       return;
     }
 
-    // Check if moving to "call" without phone number
-    if (targetColumn === "call" && !activeItemData.contact_phone) {
+    // When moving to "get_contacts", open Yad2 page and show contact popup
+    if (targetColumn === "get_contacts" && activeItem?.board_column === "review" && !activeItemData.contact_phone) {
+      // Open Yad2 listing page
+      if (activeItemData.listings.url) {
+        window.open(activeItemData.listings.url, "_blank");
+      }
+
       // Open contact dialog with pending move
       setEditingItem(activeItemData);
       setContactName(activeItemData.contact_name || activeItemData.listings.contact_name || "");
       setContactPhone(activeItemData.contact_phone || "");
-      setPendingMove({ itemId: activeId, toColumn: "call" });
+      setPendingMove({ itemId: activeId, toColumn: "get_contacts" });
       setContactDialogOpen(true);
 
       // Revert column in state since the move is pending
@@ -240,25 +245,6 @@ export function BoardClient() {
           return i;
         })
       );
-      return;
-    }
-
-    // Auto-populate contact_name when moving to get_contacts
-    if (targetColumn === "get_contacts" && !activeItemData.contact_name && activeItemData.listings.contact_name) {
-      const resp = await fetch(`/api/board/${activeId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          board_column: targetColumn,
-          contact_name: activeItemData.listings.contact_name,
-        }),
-      });
-      if (resp.ok) {
-        const updated = await resp.json();
-        setItems((prev) => prev.map((i) => (i.id === activeId ? updated : i)));
-      }
-      // Reorder remaining items in both columns
-      await reorderAfterMove(activeId, targetColumn, overId);
       return;
     }
 
@@ -559,7 +545,7 @@ export function BoardClient() {
             <DialogTitle>Contact Information</DialogTitle>
             <DialogDescription>
               {pendingMove
-                ? "Phone number is required to move to the Call column."
+                ? "Enter the contact details from the Yad2 listing page."
                 : "Add or edit contact details for this listing."}
             </DialogDescription>
           </DialogHeader>
@@ -574,7 +560,7 @@ export function BoardClient() {
             </div>
             <div>
               <label className="text-[0.75rem] font-medium text-[#86868b] mb-1 block">
-                Phone {pendingMove && <span className="text-[#ff3b30]">*</span>}
+                Phone
               </label>
               <Input
                 value={contactPhone}
@@ -596,10 +582,9 @@ export function BoardClient() {
             </Button>
             <Button
               onClick={saveContacts}
-              disabled={pendingMove ? !contactPhone.trim() : false}
               className="bg-[#0071e3] hover:bg-[#0077ed] text-white"
             >
-              {pendingMove ? "Save & Move to Call" : "Save"}
+              {pendingMove ? "Save & Move" : "Save"}
             </Button>
           </DialogFooter>
         </DialogContent>

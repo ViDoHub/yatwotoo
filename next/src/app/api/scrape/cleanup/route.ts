@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 
 /**
  * POST /api/scrape/cleanup
@@ -8,7 +8,7 @@ import { createServerClient } from "@/lib/supabase/server";
  * Called by Vercel Cron daily at 3am.
  */
 export async function POST() {
-  const supabase = createServerClient();
+  const supabase = createAdminClient();
 
   // Step 1: Mark stale listings as inactive (not seen for 3 days)
   const inactiveCutoff = new Date();

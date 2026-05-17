@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { fetchItemDetail } from "@/lib/scraper/yad2-client";
 import type { Database } from "@/types/database";
 
@@ -9,7 +9,7 @@ import type { Database } from "@/types/database";
  * Called by Vercel Cron every 30 minutes.
  */
 export async function POST() {
-  const supabase = createServerClient();
+  const supabase = createAdminClient();
   const BATCH_SIZE = 50;
 
   // Find un-enriched active listings (parking/elevator/shelter are all null)
