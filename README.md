@@ -5,6 +5,8 @@ A real estate aggregator that scrapes Yad2 (Israel's largest property marketplac
 ## What It Does
 
 - **Scrapes Yad2** every 15 minutes for rent, sale, and new project listings across all Israeli regions
+- **Kanban board** — drag-and-drop pipeline: Review → Get Contacts → Call → Visit
+- **Visit scheduling** with Google Calendar sync
 - **Map view** with clustered markers and geo-polygon search
 - **Saved searches** with configurable filters (city, rooms, price, sqm, amenities, geo-area)
 - **Price-drop detection** — tracks price history and flags decreases
@@ -96,22 +98,103 @@ Modern frontend deployed on Vercel with Supabase (PostgreSQL) as the database.
 |-------|------|
 | Framework | Next.js 16 (App Router, Turbopack) |
 | Database | Supabase (PostgreSQL) |
-| Styling | Tailwind CSS 4 |
+| UI | shadcn/ui, Tailwind CSS 4 |
+| Board | @dnd-kit (drag-and-drop) |
 | Maps | Leaflet.js |
 | Testing | Vitest |
 | Deployment | Vercel |
 
-### Quick Start
+### Prerequisites
+
+- Node.js 18+
+- Docker (for local Supabase)
+- [Supabase CLI](https://supabase.com/docs/guides/cli) (`npx supabase` works without global install)
+
+### Local Development Setup
+
+1. **Start local Supabase** (applies migrations automatically):
+
+   ```bash
+   cd next
+   npx supabase start
+   ```
+
+   First run pulls Docker images (~1 GB). On subsequent runs, it starts from backup instantly.
+
+2. **Seed the database** (optional — for real listing data):
+
+   Get `seed.sql` from a teammate (too large for git), or dump from the remote DB:
+
+   ```bash
+   npx supabase db dump --data-only -f supabase/seed.sql \
+     --db-url "postgresql://postgres.[PROJECT_REF]:[PASSWORD]@[POOLER_HOST]:5432/postgres"
+   ```
+
+   Then reset to apply the seed:
+
+   ```bash
+   npx supabase db reset
+   ```
+
+3. **Configure environment**:
+
+   ```bash
+   cp .env.example .env.local
+   ```
+
+   Fill in the keys from `npx supabase status`:
+   - `NEXT_PUBLIC_SUPABASE_URL` → Project URL
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` → Publishable key
+   - `SUPABASE_SERVICE_ROLE_KEY` → Secret key
+
+4. **Install and run**:
+
+   ```bash
+   npm install
+   npm run dev
+   ```
+
+   Available at **http://localhost:3000**.
+
+### Supabase Local Commands
+
+| Command | Description |
+|---------|-------------|
+| `npx supabase start` | Start local Supabase containers |
+| `npx supabase stop` | Stop containers (data persists in Docker volumes) |
+| `npx supabase db reset` | Drop and recreate DB from migrations + seed |
+| `npx supabase status` | Show local URLs, keys, and service status |
+| `npx supabase db query "SELECT ..."` | Run SQL against local DB |
+| `npx supabase migration new <name>` | Create a new migration file |
+
+### Database Migrations
+
+Migrations live in `next/supabase/migrations/` and are applied automatically on `supabase start` or `supabase db reset`.
+
+To create a new migration:
 
 ```bash
 cd next
-cp .env.local.example .env.local
-# Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY
-npm install
-npm run dev
+npx supabase migration new my_change_name
+# Edit supabase/migrations/<timestamp>_my_change_name.sql
+npx supabase db reset  # Apply locally
 ```
 
-Available at **http://localhost:3000**.
+To push migrations to the remote (production) database:
+
+```bash
+npx supabase db push --db-url "postgresql://..."
+```
+
+### Production Deployment (Vercel)
+
+Set these environment variables in Vercel (or in `.env.production` locally):
+
+| Variable | Description |
+|----------|-------------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Remote Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Remote anon/publishable key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Remote service role/secret key |
 
 ### Cron Jobs (Vercel)
 
@@ -125,12 +208,6 @@ Configured in `next/vercel.json`:
 
 ### Environment Variables
 
-| Variable | Description |
-|----------|-------------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon (public) key |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key |
-
 ---
 
 ## Data Flow
@@ -142,7 +219,9 @@ The Python and Next.js apps can run independently:
 
 Both use the same Yad2 API client logic and identical scraping schedules.
 
-## Backup & Restore (Python/MongoDB)
+## Backup & Restore
+
+### Python / MongoDB
 
 ```bash
 # Manual backup
@@ -153,6 +232,18 @@ mongodump --uri="mongodb://localhost:27017" --db=yad2search \
 # Restore inside container
 docker compose exec app mongorestore --uri="mongodb://mongo:27017" \
   --archive=/app/backups/yad2search_20260507.gz --gzip --drop
+```
+
+### Next.js / Supabase
+
+```bash
+# Dump data from remote to local seed file
+cd next
+npx supabase db dump --data-only -f supabase/seed.sql \
+  --db-url "postgresql://postgres.[REF]:[PASS]@[POOLER]:5432/postgres"
+
+# Reset local DB with latest migrations + seed
+npx supabase db reset
 ```
 
 ---
@@ -175,4 +266,4 @@ cd next
 npm test
 ```
 
-Uses **Vitest** with mocked Supabase. Covers: API routes, scraper parsing, search engine filters/sorting/pagination/geo, sync & price history, notifications & dedup, hidden listings, models & constants (109 tests across 8 files).
+Uses **Vitest** with mocked Supabase. Covers: API routes, scraper parsing, search engine filters/sorting/pagination/geo, sync & price history, notifications & dedup, hidden listings, board API, models & constants (133 tests across 9 files).
