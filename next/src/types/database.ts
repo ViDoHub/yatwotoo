@@ -336,6 +336,45 @@ export interface Database {
         };
         Relationships: [];
       };
+      board_listings: {
+        Row: {
+          id: string;
+          listing_id: string;
+          board_column: string;
+          position: number;
+          contact_name: string;
+          contact_phone: string;
+          visit_date: string | null;
+          notes: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          listing_id: string;
+          board_column?: string;
+          position?: number;
+          contact_name?: string;
+          contact_phone?: string;
+          visit_date?: string | null;
+          notes?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          listing_id?: string;
+          board_column?: string;
+          position?: number;
+          contact_name?: string;
+          contact_phone?: string;
+          visit_date?: string | null;
+          notes?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {

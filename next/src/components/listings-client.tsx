@@ -104,6 +104,9 @@ export function ListingsClient({ hiddenMode = false }: { hiddenMode?: boolean })
     Number(searchParams.get("page") || (s.page as number) || 1)
   );
 
+  // Board listing IDs (for heart icon state)
+  const [boardListingIds, setBoardListingIds] = useState<Map<string, string>>(new Map()); // listing.id -> board_listing.id
+
   // City & neighborhood options
   const [cityOptions, setCityOptions] = useState<string[]>([]);
   const [neighborhoodOptions, setNeighborhoodOptions] = useState<string[]>([]);
@@ -221,6 +224,51 @@ export function ListingsClient({ hiddenMode = false }: { hiddenMode?: boolean })
     await fetch(`/api/listings/${yad2Id}/unhide`, { method: "POST" });
     toast.success("Listing unhidden");
     fetchListings();
+  }
+
+  // Fetch board listing IDs
+  useEffect(() => {
+    fetch("/api/board")
+      .then((r) => r.json())
+      .then((items: { id: string; listing_id: string }[]) => {
+        if (Array.isArray(items)) {
+          const map = new Map<string, string>();
+          for (const item of items) {
+            map.set(item.listing_id, item.id);
+          }
+          setBoardListingIds(map);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  async function handleToggleBoard(listingId: string, isOnBoard: boolean) {
+    if (isOnBoard) {
+      const boardId = boardListingIds.get(listingId);
+      if (!boardId) return;
+      await fetch(`/api/board/${boardId}`, { method: "DELETE" });
+      setBoardListingIds((prev) => {
+        const next = new Map(prev);
+        next.delete(listingId);
+        return next;
+      });
+      toast.success("Removed from board");
+    } else {
+      const resp = await fetch("/api/board", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ listing_id: listingId }),
+      });
+      if (resp.ok) {
+        const item = await resp.json();
+        setBoardListingIds((prev) => new Map(prev).set(listingId, item.id));
+        toast.success("Added to board");
+      } else if (resp.status === 409) {
+        toast.info("Already on the board");
+      } else {
+        toast.error("Failed to add to board");
+      }
+    }
   }
 
   async function saveSearch() {
@@ -520,6 +568,8 @@ export function ListingsClient({ hiddenMode = false }: { hiddenMode?: boolean })
                   listing={listing}
                   onHide={showHidden ? undefined : handleHide}
                   onUnhide={showHidden ? handleUnhide : undefined}
+                  isOnBoard={boardListingIds.has(listing.id)}
+                  onToggleBoard={handleToggleBoard}
                 />
               ))}
             </div>

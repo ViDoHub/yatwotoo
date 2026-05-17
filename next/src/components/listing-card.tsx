@@ -7,6 +7,8 @@ interface ListingCardProps {
   listing: Listing;
   onHide?: (yad2Id: string) => void;
   onUnhide?: (yad2Id: string) => void;
+  isOnBoard?: boolean;
+  onToggleBoard?: (listingId: string, isOnBoard: boolean) => void;
 }
 
 const AMENITY_GROUPS: { label: string; color: string; items: Record<string, string> }[] = [
@@ -32,7 +34,7 @@ const AMENITY_GROUPS: { label: string; color: string; items: Record<string, stri
   },
 ];
 
-export function ListingCard({ listing, onHide, onUnhide }: ListingCardProps) {
+export function ListingCard({ listing, onHide, onUnhide, isOnBoard, onToggleBoard }: ListingCardProps) {
   const imageUrl = listing.images?.[0] || null;
   const dateStr = listing.date_added
     ? listing.date_added.slice(0, 10).split("-").reverse().join("/")
@@ -165,8 +167,25 @@ export function ListingCard({ listing, onHide, onUnhide }: ListingCardProps) {
           )}
         </div>
 
-        {/* === ACTION STRIP: Eye icon + Vertical deal-type tag === */}
-        <div className="shrink-0 flex flex-col items-center gap-2 pt-0.5">
+        {/* === ACTION STRIP: Heart + Eye icon + Vertical deal-type tag === */}
+        <div className="shrink-0 flex flex-col items-center gap-1 pt-0.5">
+          {/* Board heart toggle */}
+          {onToggleBoard && (
+            <button
+              onClick={() => onToggleBoard(listing.id, !!isOnBoard)}
+              title={isOnBoard ? "Remove from board" : "Add to board"}
+              className={`p-1 rounded-lg transition-colors bg-transparent border-none cursor-pointer ${
+                isOnBoard
+                  ? "text-[#ff3b30] hover:bg-[#fff0f0]"
+                  : "text-[#aeaeb2] hover:bg-[#fff0f0] hover:text-[#ff3b30]"
+              }`}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill={isOnBoard ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
+              </svg>
+            </button>
+          )}
+
           {/* Hide/Unhide */}
           {onUnhide && (
             <button

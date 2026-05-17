@@ -11,6 +11,11 @@ export type NotificationLog = Database["public"]["Tables"]["notification_logs"][
 export type UserSettings = Database["public"]["Tables"]["user_settings"]["Row"];
 export type ScrapeJob = Database["public"]["Tables"]["scrape_jobs"]["Row"];
 
+export type BoardListing = Database["public"]["Tables"]["board_listings"]["Row"];
+export type BoardListingInsert = Database["public"]["Tables"]["board_listings"]["Insert"];
+export type BoardListingUpdate = Database["public"]["Tables"]["board_listings"]["Update"];
+export type BoardColumn = "review" | "get_contacts" | "call" | "visit";
+
 // Enums
 export type DealType = "rent" | "forsale" | "newprojects";
 

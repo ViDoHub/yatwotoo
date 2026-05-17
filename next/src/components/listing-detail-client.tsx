@@ -39,6 +39,49 @@ export function ListingDetailClient({ listing, priceHistory, coordinates }: Prop
   const [hidden, setHidden] = useState(listing.is_hidden);
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
   const [showMap, setShowMap] = useState(false);
+  const [onBoard, setOnBoard] = useState(false);
+  const [boardId, setBoardId] = useState<string | null>(null);
+
+  // Check if listing is on the board
+  useState(() => {
+    fetch("/api/board")
+      .then((r) => r.json())
+      .then((items: { id: string; listing_id: string }[]) => {
+        if (Array.isArray(items)) {
+          const found = items.find((item) => item.listing_id === listing.id);
+          if (found) {
+            setOnBoard(true);
+            setBoardId(found.id);
+          }
+        }
+      })
+      .catch(() => {});
+  });
+
+  async function toggleBoard() {
+    if (onBoard && boardId) {
+      await fetch(`/api/board/${boardId}`, { method: "DELETE" });
+      setOnBoard(false);
+      setBoardId(null);
+      toast.success("Removed from board");
+    } else {
+      const resp = await fetch("/api/board", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ listing_id: listing.id }),
+      });
+      if (resp.ok) {
+        const item = await resp.json();
+        setOnBoard(true);
+        setBoardId(item.id);
+        toast.success("Added to board");
+      } else if (resp.status === 409) {
+        toast.info("Already on the board");
+      } else {
+        toast.error("Failed to add to board");
+      }
+    }
+  }
 
   async function toggleHide() {
     const action = hidden ? "unhide" : "hide";
@@ -223,6 +266,19 @@ export function ListingDetailClient({ listing, priceHistory, coordinates }: Prop
             <CardContent className="p-6">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-2 flex-shrink-0">
+                  <button
+                    onClick={toggleBoard}
+                    title={onBoard ? "Remove from board" : "Add to board"}
+                    className={`flex items-center justify-center w-8 h-8 rounded-full transition-colors cursor-pointer ${
+                      onBoard
+                        ? "bg-[#ff3b30]/10 text-[#ff3b30] hover:bg-[#ff3b30]/20"
+                        : "bg-[#f5f5f7] hover:bg-[#e8e8ed] text-[#1d1d1f]"
+                    }`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill={onBoard ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
+                    </svg>
+                  </button>
                   <button
                     onClick={toggleHide}
                     title={hidden ? "Unhide Listing" : "Hide Listing"}
